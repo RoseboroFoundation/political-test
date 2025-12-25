@@ -1945,6 +1945,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pyrate-limiter"
+version = "3.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ec/da/f682c5c5f9f0a5414363eb4397e6b07d84a02cde69c4ceadcbf32c85537c/pyrate_limiter-3.9.0.tar.gz", hash = "sha256:6b882e2c77cda07a241d3730975daea4258344b39c878f1dd8849df73f70b0ce", size = 289308, upload-time = "2025-07-30T14:36:58.659Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/04/af/d8bf0959ece9bc4679bd203908c31019556a421d76d8143b0c6871c7f614/pyrate_limiter-3.9.0-py3-none-any.whl", hash = "sha256:77357840c8cf97a36d67005d4e090787043f54000c12c2b414ff65657653e378", size = 33628, upload-time = "2025-07-30T14:36:57.71Z" },
+]
+
+[[package]]
 name = "pytest"
 version = "9.0.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2320,6 +2329,19 @@ wheels = [
 ]
 
 [[package]]
+name = "sec-edgar-downloader"
+version = "5.0.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyrate-limiter" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/01/3d/5c033a95a0b88cf0f664b2080553c7a3a412e4ee100e2167423bdc9862a6/sec_edgar_downloader-5.0.3.tar.gz", hash = "sha256:a67f298c66c8c63773c6aad69d1b99e6fedca5d8fd3b9c1a6e99218dd73e0d26", size = 33401, upload-time = "2025-02-14T06:24:48.58Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1a/64/7e975d69affe7d308126b24b0aa52483bb3dbcaff14a9964a00c05e8f9a5/sec_edgar_downloader-5.0.3-py3-none-any.whl", hash = "sha256:c7e101c84ac10da1fd113aab2d31d81b850c49a27e2bb37cb86a7ead808b4bfc", size = 14915, upload-time = "2025-02-14T06:24:47.136Z" },
+]
+
+[[package]]
 name = "send2trash"
 version = "1.8.3"
 source = { registry = "https://pypi.org/simple" }
@@ -2342,14 +2364,18 @@ name = "signalsandsystems"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "beautifulsoup4" },
     { name = "fredapi" },
     { name = "jupyter" },
+    { name = "lxml" },
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "pandas" },
     { name = "pandas-datareader" },
     { name = "python-dotenv" },
+    { name = "requests" },
     { name = "seaborn" },
+    { name = "sec-edgar-downloader" },
     { name = "yfinance" },
 ]
 
@@ -2362,14 +2388,18 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "beautifulsoup4", specifier = ">=4.14.3" },
     { name = "fredapi", specifier = ">=0.5.2" },
     { name = "jupyter", specifier = ">=1.1.1" },
+    { name = "lxml", specifier = ">=6.0.2" },
     { name = "matplotlib", specifier = ">=3.10.8" },
     { name = "numpy", specifier = ">=2.4.0" },
     { name = "pandas", specifier = ">=2.3.3" },
     { name = "pandas-datareader", specifier = ">=0.10.0" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
+    { name = "requests", specifier = ">=2.32.5" },
     { name = "seaborn", specifier = ">=0.13.2" },
+    { name = "sec-edgar-downloader", specifier = ">=5.0.3" },
     { name = "yfinance", specifier = ">=0.2.66" },
 ]
 
