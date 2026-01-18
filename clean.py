@@ -705,6 +705,9 @@ class NewsArticle:
     url: str
     published_date: Optional[datetime]
     snippet: Optional[str]
+    culture_war_event: Optional[str] = None
+    event_date: Optional[datetime] = None
+    search_query: Optional[str] = None
     author: Optional[str] = None
     section: Optional[str] = None
     word_count: Optional[int] = None
@@ -749,23 +752,90 @@ class CompanyNewsAggregator:
         self.last_nyt_request = None
         self.nyt_requests_this_minute = 0
 
+    def _build_search_queries(
+        self,
+        company_name: str,
+        culture_war_event: str = None,
+        include_insider_trading: bool = True
+    ) -> List[str]:
+        """
+        Build search queries for news articles about culture war events and insider trading.
+
+        Args:
+            company_name: Full company name
+            culture_war_event: Description of the culture war event
+            include_insider_trading: Whether to include insider trading queries
+
+        Returns:
+            List of search query strings
+        """
+        queries = [company_name]
+
+        if culture_war_event:
+            # Extract key terms from the culture war event
+            event_lower = culture_war_event.lower()
+
+            # Add the full company + event query
+            queries.append(f"{company_name} {culture_war_event[:50]}")
+
+            # Add specific keyword-based queries
+            if 'boycott' in event_lower:
+                queries.append(f"{company_name} boycott")
+            if 'pride' in event_lower or 'lgbtq' in event_lower or 'trans' in event_lower:
+                queries.append(f"{company_name} LGBTQ")
+                queries.append(f"{company_name} Pride transgender")
+            if 'backlash' in event_lower:
+                queries.append(f"{company_name} backlash")
+            if 'controversy' in event_lower or 'controversial' in event_lower:
+                queries.append(f"{company_name} controversy")
+            if 'campaign' in event_lower or 'ad' in event_lower:
+                queries.append(f"{company_name} advertisement controversy")
+            if 'racist' in event_lower or 'racial' in event_lower or 'race' in event_lower:
+                queries.append(f"{company_name} racism")
+            if 'political' in event_lower or 'conservative' in event_lower or 'liberal' in event_lower:
+                queries.append(f"{company_name} political")
+            if 'kaepernick' in event_lower:
+                queries.append(f"{company_name} Kaepernick")
+            if 'dylan mulvaney' in event_lower:
+                queries.append(f"{company_name} Dylan Mulvaney")
+
+        # Add insider trading queries
+        if include_insider_trading:
+            queries.append(f"{company_name} insider trading")
+            queries.append(f"{company_name} executive stock sales")
+            queries.append(f"{company_name} SEC filing insider")
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_queries = []
+        for q in queries:
+            if q.lower() not in seen:
+                seen.add(q.lower())
+                unique_queries.append(q)
+
+        return unique_queries[:8]  # Limit to 8 queries
+
     def search_guardian(
         self,
         ticker: str,
         company_name: str,
+        culture_war_event: str = None,
+        event_date: datetime = None,
         start_date: datetime = None,
         end_date: datetime = None,
-        max_results_per_year: int = 200
+        max_results: int = 200
     ) -> List[NewsArticle]:
         """
-        Search The Guardian API for historical articles (1999-present).
+        Search The Guardian API for articles about culture war events.
 
         Args:
             ticker: Company ticker symbol
             company_name: Full company name
+            culture_war_event: Description of the culture war event
+            event_date: Date of the culture war event (for reference)
             start_date: Start date for search
             end_date: End date for search
-            max_results_per_year: Maximum number of results per year
+            max_results: Maximum number of results
 
         Returns:
             List of NewsArticle objects
@@ -776,35 +846,34 @@ class CompanyNewsAggregator:
             logger.warning("Guardian API key not provided. Skipping Guardian search.")
             return articles
 
+        # Set date range
         if start_date is None:
             start_date = datetime(2000, 1, 1)
         if end_date is None:
-            end_date = datetime.now()
+            end_date = datetime(2025, 12, 31)
+
+        # Build search queries
+        search_queries = self._build_search_queries(company_name, culture_war_event)
+
+        logger.info(f"  Guardian: Searching for {ticker} with {len(search_queries)} queries")
+        logger.info(f"    Date range: {start_date.date()} to {end_date.date()}")
 
         try:
-            current_start = start_date
-
-            while current_start < end_date:
-                current_end = min(
-                    datetime(current_start.year + 1, 1, 1) - timedelta(days=1),
-                    end_date
-                )
-
-                logger.info(f"  Guardian: Searching {current_start.year} for {ticker}")
-
+            for query in search_queries:
                 page = 1
                 total_pages = 1
-                articles_this_year = 0
+                query_articles = 0
+                max_per_query = max_results // len(search_queries)
 
-                while page <= total_pages and articles_this_year < max_results_per_year:
+                while page <= total_pages and query_articles < max_per_query:
                     url = "https://content.guardianapis.com/search"
                     params = {
-                        'q': company_name,
-                        'from-date': current_start.strftime('%Y-%m-%d'),
-                        'to-date': current_end.strftime('%Y-%m-%d'),
+                        'q': query,
+                        'from-date': start_date.strftime('%Y-%m-%d'),
+                        'to-date': end_date.strftime('%Y-%m-%d'),
                         'page': page,
                         'page-size': 50,
-                        'show-fields': 'headline,trailText,webPublicationDate,bodyText,wordcount,byline',
+                        'show-fields': 'headline,trailText,wordcount,byline',
                         'show-tags': 'all',
                         'api-key': self.guardian_api_key
                     }
@@ -815,7 +884,7 @@ class CompanyNewsAggregator:
                         data = response.json()
 
                         if data['response']['status'] == 'ok':
-                            total_pages = data['response']['pages']
+                            total_pages = min(data['response']['pages'], 3)
 
                             for item in data['response']['results']:
                                 try:
@@ -834,12 +903,15 @@ class CompanyNewsAggregator:
                                         url=item['webUrl'],
                                         published_date=pub_date,
                                         snippet=fields.get('trailText', ''),
+                                        culture_war_event=culture_war_event,
+                                        event_date=event_date,
+                                        search_query=query,
                                         author=fields.get('byline'),
                                         section=item.get('sectionName'),
                                         word_count=fields.get('wordcount')
                                     )
                                     articles.append(article)
-                                    articles_this_year += 1
+                                    query_articles += 1
 
                                 except Exception as e:
                                     logger.debug(f"Error parsing Guardian article: {e}")
@@ -853,34 +925,38 @@ class CompanyNewsAggregator:
                         time.sleep(2)
                         break
 
-                logger.info(f"    Found {articles_this_year} Guardian articles in {current_start.year}")
-                current_start = datetime(current_start.year + 1, 1, 1)
-                time.sleep(0.5)
+                logger.info(f"    Query '{query[:40]}...': {query_articles} articles")
+                time.sleep(0.3)
 
         except Exception as e:
             logger.error(f"Error in Guardian search for {ticker}: {e}")
 
+        logger.info(f"  Guardian total: {len(articles)} articles")
         return articles
 
     def search_nyt(
         self,
         ticker: str,
         company_name: str,
+        culture_war_event: str = None,
+        event_date: datetime = None,
         start_date: datetime = None,
         end_date: datetime = None,
-        max_results_per_year: int = 200
+        max_results: int = 200
     ) -> List[NewsArticle]:
         """
-        Search New York Times Article Search API (1851-present).
+        Search New York Times Article Search API for culture war event articles.
 
         NYT API rate limit: 500 requests per day, 5 requests per minute
 
         Args:
             ticker: Company ticker symbol
             company_name: Full company name
+            culture_war_event: Description of the culture war event
+            event_date: Date of the culture war event (for reference)
             start_date: Start date for search
             end_date: End date for search
-            max_results_per_year: Maximum number of results per year
+            max_results: Maximum number of results
 
         Returns:
             List of NewsArticle objects
@@ -891,36 +967,35 @@ class CompanyNewsAggregator:
             logger.warning("NYT API key not provided. Skipping NYT search.")
             return articles
 
+        # Set date range
         if start_date is None:
             start_date = datetime(2000, 1, 1)
         if end_date is None:
-            end_date = datetime.now()
+            end_date = datetime(2025, 12, 31)
+
+        # Build search queries
+        search_queries = self._build_search_queries(company_name, culture_war_event)
+
+        logger.info(f"  NYT: Searching for {ticker} with {len(search_queries)} queries")
+        logger.info(f"    Date range: {start_date.date()} to {end_date.date()}")
 
         try:
-            current_start = start_date
-
-            while current_start < end_date:
-                current_end = min(
-                    datetime(current_start.year + 1, 1, 1) - timedelta(days=1),
-                    end_date
-                )
-
-                logger.info(f"  NYT: Searching {current_start.year} for {ticker}")
-
+            for query in search_queries:
                 page = 0
-                articles_this_year = 0
+                query_articles = 0
+                max_per_query = max_results // len(search_queries)
 
-                while page < 100 and articles_this_year < max_results_per_year:
+                while page < 10 and query_articles < max_per_query:
                     self._nyt_rate_limit()
 
                     url = "https://api.nytimes.com/svc/search/v2/articlesearch.json"
                     params = {
-                        'q': company_name,
-                        'begin_date': current_start.strftime('%Y%m%d'),
-                        'end_date': current_end.strftime('%Y%m%d'),
+                        'q': query,
+                        'begin_date': start_date.strftime('%Y%m%d'),
+                        'end_date': end_date.strftime('%Y%m%d'),
                         'page': page,
                         'api-key': self.nyt_api_key,
-                        'sort': 'newest'
+                        'sort': 'relevance'
                     }
 
                     try:
@@ -959,12 +1034,15 @@ class CompanyNewsAggregator:
                                         url=doc.get('web_url', ''),
                                         published_date=pub_date,
                                         snippet=doc.get('snippet', ''),
+                                        culture_war_event=culture_war_event,
+                                        event_date=event_date,
+                                        search_query=query,
                                         author=author,
                                         section=doc.get('section_name'),
                                         word_count=doc.get('word_count')
                                     )
                                     articles.append(article)
-                                    articles_this_year += 1
+                                    query_articles += 1
 
                                 except Exception as e:
                                     logger.debug(f"Error parsing NYT article: {e}")
@@ -977,13 +1055,13 @@ class CompanyNewsAggregator:
                         time.sleep(5)
                         break
 
-                logger.info(f"    Found {articles_this_year} NYT articles in {current_start.year}")
-                current_start = datetime(current_start.year + 1, 1, 1)
+                logger.info(f"    Query '{query[:40]}...': {query_articles} articles")
                 time.sleep(1)
 
         except Exception as e:
             logger.error(f"Error in NYT search for {ticker}: {e}")
 
+        logger.info(f"  NYT total: {len(articles)} articles")
         return articles
 
     def _nyt_rate_limit(self):
@@ -1009,17 +1087,21 @@ class CompanyNewsAggregator:
         self,
         ticker: str,
         company_name: str,
+        culture_war_event: str = None,
+        event_date: datetime = None,
         start_date: datetime = None,
         end_date: datetime = None,
-        max_results: int = 100,
+        max_results: int = 200,
         subreddits: List[str] = None
     ) -> List[NewsArticle]:
         """
-        Search Reddit for company mentions.
+        Search Reddit for company culture war event mentions.
 
         Args:
             ticker: Company ticker symbol
             company_name: Full company name
+            culture_war_event: Description of the culture war event
+            event_date: Date of the culture war event (for reference)
             start_date: Start date for search
             end_date: End date for search
             max_results: Maximum number of results per subreddit
@@ -1034,30 +1116,27 @@ class CompanyNewsAggregator:
             logger.warning("Reddit client not initialized. Skipping Reddit search.")
             return articles
 
+        # Set date range
         if start_date is None:
             start_date = datetime(2000, 1, 1)
         if end_date is None:
-            end_date = datetime.now()
+            end_date = datetime(2025, 12, 31)
 
         if subreddits is None:
             subreddits = [
                 'news', 'business', 'investing', 'stocks', 'wallstreetbets',
                 'finance', 'economy', 'worldnews', 'politics', 'technology',
                 'entertainment', 'Conservative', 'progressive', 'capitalism',
-                'Socialism_101'
+                'OutOfTheLoop', 'nottheonion'
             ]
+
+        # Build search queries using the helper method
+        search_queries = self._build_search_queries(company_name, culture_war_event)
+
+        logger.info(f"  Reddit: Searching for {ticker} with {len(search_queries)} queries")
+        logger.info(f"    Date range: {start_date.date()} to {end_date.date()}")
 
         try:
-            search_queries = [
-                company_name,
-                ticker,
-                f"{company_name} boycott",
-                f"{company_name} controversy",
-                f"{ticker} stock"
-            ]
-
-            logger.info(f"  Reddit: Searching for {ticker}")
-
             for subreddit_name in subreddits:
                 try:
                     subreddit = self.reddit.subreddit(subreddit_name)
@@ -1087,6 +1166,9 @@ class CompanyNewsAggregator:
                                         if submission.selftext
                                         else None
                                     ),
+                                    culture_war_event=culture_war_event,
+                                    event_date=event_date,
+                                    search_query=query,
                                     author=(
                                         str(submission.author)
                                         if submission.author
@@ -1109,48 +1191,50 @@ class CompanyNewsAggregator:
                     logger.debug(f"Error accessing r/{subreddit_name}: {e}")
                     continue
 
-            logger.info(f"    Found {len(articles)} Reddit posts")
-
         except Exception as e:
             logger.error(f"Error in Reddit search for {ticker}: {e}")
 
+        logger.info(f"  Reddit total: {len(articles)} posts")
         return articles
 
-    def aggregate_news(
+    def aggregate_culture_war_news(
         self,
-        companies_df: pd.DataFrame,
-        start_date: datetime = None,
-        end_date: datetime = None,
+        culture_war_df: pd.DataFrame,
+        start_date: str = '2000-01-01',
+        end_date: str = '2025-12-31',
         max_results_per_source: int = 200,
         sources: List[str] = None,
         checkpoint_file: str = 'news_checkpoint.csv'
     ) -> pd.DataFrame:
         """
-        Aggregate news from all sources for all companies (2000-2025).
+        Aggregate news from all sources for culture war events.
+
+        Searches for news about each company's culture war event across
+        the full date range. Also searches for insider trading news
+        related to these companies.
 
         Args:
-            companies_df: DataFrame with 'ticker' and 'company_name' columns
-            start_date: Start date (default: 2000-01-01)
-            end_date: End date (default: today)
-            max_results_per_source: Max results per source per company per year
+            culture_war_df: DataFrame with columns:
+                - 'Company': Company name
+                - 'Ticker': Stock ticker symbol
+                - 'Culture War Event': Description of the event
+                - 'Event Date': Date of the event
+            start_date: Start date for search (default: '2000-01-01')
+            end_date: End date for search (default: '2025-12-31')
+            max_results_per_source: Max results per source per event
             sources: List of sources to use ['guardian', 'nyt', 'reddit']
             checkpoint_file: File to save progress
 
         Returns:
             DataFrame with all aggregated news articles
         """
-        if start_date is None:
-            start_date = datetime(2000, 1, 1)
-        if end_date is None:
-            end_date = datetime.now()
-
         if sources is None:
             sources = ['guardian', 'nyt', 'reddit']
 
         all_articles = []
 
         checkpoint_path = Path(checkpoint_file)
-        processed_companies = {}
+        processed_events = set()
 
         if checkpoint_path.exists():
             try:
@@ -1160,80 +1244,109 @@ class CompanyNewsAggregator:
                 )
                 all_articles.extend(checkpoint_df.to_dict('records'))
 
+                # Track processed events by ticker + event_date
                 for _, row in checkpoint_df.iterrows():
-                    ticker = row['ticker']
-                    source = row['source']
-                    if ticker not in processed_companies:
-                        processed_companies[ticker] = set()
-                    processed_companies[ticker].add(source)
+                    ticker = row.get('ticker', '')
+                    event_date = row.get('event_date', '')
+                    if ticker and event_date:
+                        processed_events.add(f"{ticker}_{event_date}")
 
                 logger.info(f"Loaded checkpoint with {len(checkpoint_df)} articles")
-                logger.info(f"Processed companies: {list(processed_companies.keys())}")
+                logger.info(f"Processed events: {len(processed_events)}")
             except Exception as e:
                 logger.warning(f"Error loading checkpoint: {e}")
 
-        total_companies = len(companies_df)
+        total_events = len(culture_war_df)
 
-        for idx, row in companies_df.iterrows():
-            ticker = row['ticker']
-            company_name = row['company_name']
+        for idx, row in culture_war_df.iterrows():
+            # Extract event details
+            company_name = row.get('Company', '')
+            ticker = row.get('Ticker', '')
+            culture_war_event = row.get('Culture War Event', '')
+            event_date_raw = row.get('Event Date', None)
+
+            # Skip if no ticker
+            if not ticker or pd.isna(ticker) or ticker in ['Private', 'N/A']:
+                logger.info(f"Skipping {company_name} - no valid ticker")
+                continue
+
+            # Parse event date
+            event_date = None
+            if event_date_raw and not pd.isna(event_date_raw):
+                try:
+                    event_date = pd.to_datetime(event_date_raw)
+                except Exception:
+                    logger.warning(f"Could not parse event date: {event_date_raw}")
+
+            # Check if already processed
+            event_key = f"{ticker}_{event_date}"
+            if event_key in processed_events:
+                logger.info(f"Skipping {ticker} - already processed")
+                continue
 
             logger.info(f"\n{'=' * 60}")
-            logger.info(f"[{idx+1}/{total_companies}] Processing {ticker} ({company_name})")
+            logger.info(f"[{idx+1}/{total_events}] {company_name} ({ticker})")
+            logger.info(f"Event: {culture_war_event[:80]}...")
+            if event_date:
+                logger.info(f"Event Date: {event_date.date()}")
             logger.info(f"{'=' * 60}")
 
-            company_articles = []
-            processed_sources = processed_companies.get(ticker, set())
+            event_articles = []
 
+            # Parse date range
+            search_start = datetime.strptime(start_date, '%Y-%m-%d')
+            search_end = datetime.strptime(end_date, '%Y-%m-%d')
+
+            # Search Guardian
             if 'guardian' in sources:
-                guardian_source = 'The Guardian'
-                if guardian_source not in processed_sources:
-                    logger.info("Searching The Guardian (2000-2025)...")
-                    articles = self.search_guardian(
-                        ticker, company_name, start_date, end_date,
-                        max_results_per_source
-                    )
-                    company_articles.extend(articles)
-                    logger.info(f"  Total Guardian articles: {len(articles)}")
-                else:
-                    logger.info("Skipping Guardian (already processed)")
-
-            if 'nyt' in sources:
-                nyt_source = 'New York Times'
-                if nyt_source not in processed_sources:
-                    logger.info("Searching New York Times (2000-2025)...")
-                    articles = self.search_nyt(
-                        ticker, company_name, start_date, end_date,
-                        max_results_per_source
-                    )
-                    company_articles.extend(articles)
-                    logger.info(f"  Total NYT articles: {len(articles)}")
-                else:
-                    logger.info("Skipping NYT (already processed)")
-
-            if 'reddit' in sources:
-                reddit_source_pattern = 'Reddit r/'
-                reddit_processed = any(
-                    reddit_source_pattern in s for s in processed_sources
+                logger.info("Searching The Guardian...")
+                articles = self.search_guardian(
+                    ticker=ticker,
+                    company_name=company_name,
+                    culture_war_event=culture_war_event,
+                    event_date=event_date,
+                    start_date=search_start,
+                    end_date=search_end,
+                    max_results=max_results_per_source
                 )
-                if not reddit_processed:
-                    logger.info("Searching Reddit (2000-2025)...")
-                    articles = self.search_reddit(
-                        ticker, company_name, start_date, end_date,
-                        max_results_per_source
-                    )
-                    company_articles.extend(articles)
-                    logger.info(f"  Total Reddit posts: {len(articles)}")
-                else:
-                    logger.info("Skipping Reddit (already processed)")
+                event_articles.extend(articles)
 
-            if company_articles:
-                all_articles.extend([vars(a) for a in company_articles])
+            # Search NYT
+            if 'nyt' in sources:
+                logger.info("Searching New York Times...")
+                articles = self.search_nyt(
+                    ticker=ticker,
+                    company_name=company_name,
+                    culture_war_event=culture_war_event,
+                    event_date=event_date,
+                    start_date=search_start,
+                    end_date=search_end,
+                    max_results=max_results_per_source
+                )
+                event_articles.extend(articles)
 
+            # Search Reddit
+            if 'reddit' in sources:
+                logger.info("Searching Reddit...")
+                articles = self.search_reddit(
+                    ticker=ticker,
+                    company_name=company_name,
+                    culture_war_event=culture_war_event,
+                    event_date=event_date,
+                    start_date=search_start,
+                    end_date=search_end,
+                    max_results=max_results_per_source
+                )
+                event_articles.extend(articles)
+
+            # Save progress
+            if event_articles:
+                all_articles.extend([vars(a) for a in event_articles])
                 checkpoint_df = pd.DataFrame(all_articles)
                 checkpoint_df.to_csv(checkpoint_path, index=False)
-                logger.info(f"\nCheckpoint saved: {len(all_articles)} total articles")
+                logger.info(f"Checkpoint saved: {len(all_articles)} total articles")
 
+            processed_events.add(event_key)
             time.sleep(2)
 
         if len(all_articles) > 0:
@@ -1529,8 +1642,129 @@ def load_news_data(
         return news_df
     else:
         print(f"News data not found at {cache_file}")
-        print("Run news aggregator separately to generate this data")
+        print("Run scrape_culture_war_news() to generate this data")
         return None
+
+
+def scrape_culture_war_news(
+    culture_war_csv: str = 'Culture_War_Companies_160_fullmeta.csv',
+    output_file: str = './news_data/culture_war_news.csv',
+    start_date: str = '2000-01-01',
+    end_date: str = '2025-12-31',
+    max_results_per_source: int = 200,
+    sources: List[str] = None
+) -> pd.DataFrame:
+    """
+    Scrape news about culture war companies and their events.
+
+    This function searches for news articles about each company's culture war
+    event across the full date range. It also searches for insider trading
+    news related to these companies.
+
+    Parameters:
+    -----------
+    culture_war_csv : str
+        Path to the culture war companies CSV file
+    output_file : str
+        Path to save the output CSV file
+    start_date : str
+        Start date for search (default: '2000-01-01')
+    end_date : str
+        End date for search (default: '2025-12-31')
+    max_results_per_source : int
+        Maximum articles per source per event (default: 200)
+    sources : list
+        List of sources to use ['guardian', 'nyt', 'reddit']
+
+    Returns:
+    --------
+    pd.DataFrame : DataFrame with all scraped news articles
+
+    Note:
+    -----
+    Requires API keys to be set in environment variables or .env file:
+    - GUARDIAN_API_KEY: For The Guardian API
+    - NYT_API_KEY: For New York Times API
+    - REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, REDDIT_USER_AGENT: For Reddit API
+    """
+    if sources is None:
+        sources = ['guardian', 'nyt', 'reddit']
+
+    # Load culture war data
+    print("Loading culture war companies data...")
+    culture_war_df = import_culture_war_data(culture_war_csv)
+    print(f"Loaded {len(culture_war_df)} culture war events")
+
+    # Create output directory if needed
+    output_dir = os.path.dirname(output_file)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
+    # Initialize news aggregator
+    print("\nInitializing news aggregator...")
+    aggregator = CompanyNewsAggregator(
+        guardian_api_key=os.getenv('GUARDIAN_API_KEY'),
+        nyt_api_key=os.getenv('NYT_API_KEY'),
+        reddit_client_id=os.getenv('REDDIT_CLIENT_ID'),
+        reddit_client_secret=os.getenv('REDDIT_CLIENT_SECRET'),
+        reddit_user_agent=os.getenv('REDDIT_USER_AGENT', 'CultureWarResearch/1.0')
+    )
+
+    # Check which APIs are available
+    available_sources = []
+    if aggregator.guardian_api_key:
+        available_sources.append('guardian')
+        print("  Guardian API: Available")
+    else:
+        print("  Guardian API: Not configured (set GUARDIAN_API_KEY)")
+
+    if aggregator.nyt_api_key:
+        available_sources.append('nyt')
+        print("  NYT API: Available")
+    else:
+        print("  NYT API: Not configured (set NYT_API_KEY)")
+
+    if aggregator.reddit:
+        available_sources.append('reddit')
+        print("  Reddit API: Available")
+    else:
+        print("  Reddit API: Not configured (set REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET)")
+
+    # Filter sources to only available ones
+    sources = [s for s in sources if s in available_sources]
+
+    if not sources:
+        print("\nERROR: No API keys configured. Please set at least one of:")
+        print("  - GUARDIAN_API_KEY")
+        print("  - NYT_API_KEY")
+        print("  - REDDIT_CLIENT_ID + REDDIT_CLIENT_SECRET")
+        return pd.DataFrame()
+
+    print(f"\nUsing sources: {sources}")
+    print(f"Date range: {start_date} to {end_date}")
+    print(f"Max results per source: {max_results_per_source}")
+
+    # Run the aggregation
+    print("\n" + "=" * 60)
+    print("Starting news scraping...")
+    print("=" * 60)
+
+    news_df = aggregator.aggregate_culture_war_news(
+        culture_war_df=culture_war_df,
+        start_date=start_date,
+        end_date=end_date,
+        max_results_per_source=max_results_per_source,
+        sources=sources,
+        checkpoint_file=output_file.replace('.csv', '_checkpoint.csv')
+    )
+
+    # Save final results
+    if len(news_df) > 0:
+        aggregator.save_news(news_df, output_file)
+    else:
+        print("\nNo articles found. Check API keys and try again.")
+
+    return news_df
 
 
 # =============================================================================
