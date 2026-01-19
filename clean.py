@@ -39,6 +39,13 @@ This module provides functions to:
     * Federal Reserve balance sheet (Total Assets, Treasury/MBS Holdings)
     * Bank reserves (Required, Excess, Total)
     * M2 growth rates (YoY, MoM, 3M/6M annualized)
+- Load GDP data from FRED (2000-2025):
+    * Headline GDP (Nominal GDP, Real GDP, GNP)
+    * GDP growth rates (QoQ annualized, percent change)
+    * Per capita GDP (Nominal and Real)
+    * GDP components: C (Personal Consumption), I (Investment),
+      G (Government), X-M (Net Exports)
+    * GDP by industry (Value Added by sector)
 """
 
 # =============================================================================
@@ -3519,6 +3526,566 @@ def load_comprehensive_m2_data(
     return result
 
 
+# =============================================================================
+# GDP DATA
+# =============================================================================
+def load_gdp_data(
+    start_date='2000-01-01',
+    end_date=None,
+    cache_path='./data/fred'
+):
+    """
+    Load GDP data from FRED (2000-2025).
+
+    Provides comprehensive GDP measures:
+    - Nominal GDP
+    - Real GDP (inflation-adjusted)
+    - GDP growth rates
+    - Per capita GDP
+
+    Parameters:
+    -----------
+    start_date : str
+        Start date in 'YYYY-MM-DD' format
+    end_date : str
+        End date in 'YYYY-MM-DD' format (defaults to today)
+    cache_path : str
+        Directory to cache downloaded data
+
+    Returns:
+    --------
+    dict : Dictionary containing:
+        - 'headline': Nominal and Real GDP
+        - 'growth': GDP growth rates
+        - 'per_capita': Per capita measures
+        - 'combined': All GDP measures in one DataFrame
+    """
+    if end_date is None:
+        end_date = datetime.today().strftime('%Y-%m-%d')
+
+    os.makedirs(cache_path, exist_ok=True)
+    cache_file = os.path.join(cache_path, f'gdp_data_{start_date}_{end_date}.pkl')
+
+    if os.path.exists(cache_file):
+        print(f"Loading cached GDP data from {cache_file}")
+        return pd.read_pickle(cache_file)
+
+    print("Downloading GDP data from FRED...")
+
+    # Headline GDP measures
+    headline_series = {
+        'GDP_Nominal': 'GDP',                   # Gross Domestic Product (Nominal)
+        'GDP_Real': 'GDPC1',                    # Real Gross Domestic Product
+        'GNP_Nominal': 'GNP',                   # Gross National Product
+        'GNP_Real': 'GNPC96',                   # Real Gross National Product
+    }
+
+    # GDP growth rates
+    growth_series = {
+        'GDP_Growth_QoQ': 'A191RL1Q225SBEA',    # Real GDP Growth Rate (QoQ annualized)
+        'GDP_Growth_Pct_Change': 'A191RO1Q156NBEA',  # Real GDP Percent Change
+    }
+
+    # Per capita measures
+    per_capita_series = {
+        'GDP_Per_Capita_Nominal': 'A939RC0Q052SBEA',  # GDP Per Capita
+        'GDP_Per_Capita_Real': 'A939RX0Q048SBEA',     # Real GDP Per Capita
+    }
+
+    try:
+        # Download headline GDP
+        print("\n--- Headline GDP ---")
+        headline_data = {}
+        for name, code in headline_series.items():
+            try:
+                print(f"  Downloading {name} ({code})...")
+                df = pdr.DataReader(code, 'fred', start=start_date, end=end_date)
+                headline_data[name] = df.iloc[:, 0]
+            except Exception as e:
+                print(f"  Warning: Could not download {name}: {e}")
+
+        headline_df = pd.DataFrame(headline_data)
+
+        # Download growth rates
+        print("\n--- GDP Growth Rates ---")
+        growth_data = {}
+        for name, code in growth_series.items():
+            try:
+                print(f"  Downloading {name} ({code})...")
+                df = pdr.DataReader(code, 'fred', start=start_date, end=end_date)
+                growth_data[name] = df.iloc[:, 0]
+            except Exception as e:
+                print(f"  Warning: Could not download {name}: {e}")
+
+        growth_df = pd.DataFrame(growth_data)
+
+        # Download per capita measures
+        print("\n--- Per Capita GDP ---")
+        per_capita_data = {}
+        for name, code in per_capita_series.items():
+            try:
+                print(f"  Downloading {name} ({code})...")
+                df = pdr.DataReader(code, 'fred', start=start_date, end=end_date)
+                per_capita_data[name] = df.iloc[:, 0]
+            except Exception as e:
+                print(f"  Warning: Could not download {name}: {e}")
+
+        per_capita_df = pd.DataFrame(per_capita_data)
+
+        # Combine all data
+        combined_df = pd.concat([headline_df, growth_df, per_capita_df], axis=1)
+
+        result = {
+            'headline': headline_df,
+            'growth': growth_df,
+            'per_capita': per_capita_df,
+            'combined': combined_df
+        }
+
+        pd.to_pickle(result, cache_file)
+        print(f"\nCached GDP data to {cache_file}")
+
+        # Print summary
+        print("\n" + "=" * 60)
+        print("=== GDP Summary ===")
+        print("=" * 60)
+        print(f"Date range: {combined_df.index.min()} to {combined_df.index.max()}")
+        print(f"Observations: {len(combined_df)}")
+        print(f"Headline series: {len(headline_df.columns)}")
+        print(f"Growth series: {len(growth_df.columns)}")
+        print(f"Per capita series: {len(per_capita_df.columns)}")
+
+        print("\nLatest values:")
+        for col in combined_df.columns:
+            latest = combined_df[col].dropna().iloc[-1] if len(combined_df[col].dropna()) > 0 else 'N/A'
+            if isinstance(latest, float):
+                if 'Growth' in col or 'Pct' in col:
+                    print(f"  {col}: {latest:.2f}%")
+                elif latest > 1000:
+                    print(f"  {col}: ${latest:,.1f}B")
+                else:
+                    print(f"  {col}: ${latest:,.2f}")
+            else:
+                print(f"  {col}: {latest}")
+
+        return result
+
+    except Exception as e:
+        print(f"Error downloading GDP data: {e}")
+        return None
+
+
+def load_gdp_components_data(
+    start_date='2000-01-01',
+    end_date=None,
+    cache_path='./data/fred'
+):
+    """
+    Load GDP components data from FRED.
+
+    GDP = C + I + G + (X - M)
+    - C: Personal Consumption Expenditures
+    - I: Gross Private Domestic Investment
+    - G: Government Consumption & Investment
+    - X-M: Net Exports (Exports - Imports)
+
+    Parameters:
+    -----------
+    start_date : str
+        Start date in 'YYYY-MM-DD' format
+    end_date : str
+        End date in 'YYYY-MM-DD' format (defaults to today)
+    cache_path : str
+        Directory to cache downloaded data
+
+    Returns:
+    --------
+    dict : Dictionary containing:
+        - 'consumption': Personal consumption expenditures
+        - 'investment': Private investment
+        - 'government': Government spending
+        - 'trade': Exports, imports, net exports
+        - 'combined': All components in one DataFrame
+    """
+    if end_date is None:
+        end_date = datetime.today().strftime('%Y-%m-%d')
+
+    os.makedirs(cache_path, exist_ok=True)
+    cache_file = os.path.join(cache_path, f'gdp_components_{start_date}_{end_date}.pkl')
+
+    if os.path.exists(cache_file):
+        print(f"Loading cached GDP components from {cache_file}")
+        return pd.read_pickle(cache_file)
+
+    print("Downloading GDP components from FRED...")
+
+    # Personal Consumption Expenditures (C)
+    consumption_series = {
+        'PCE_Total': 'PCE',                     # Personal Consumption Expenditures
+        'PCE_Real': 'PCEC96',                   # Real PCE
+        'PCE_Goods': 'DGDSRC1',                 # PCE: Goods
+        'PCE_Durable_Goods': 'PCDG',            # PCE: Durable Goods
+        'PCE_Nondurable_Goods': 'PCND',         # PCE: Nondurable Goods
+        'PCE_Services': 'PCESV',                # PCE: Services
+    }
+
+    # Gross Private Domestic Investment (I)
+    investment_series = {
+        'Investment_Total': 'GPDI',             # Gross Private Domestic Investment
+        'Investment_Fixed': 'FPI',              # Fixed Private Investment
+        'Investment_Nonresidential': 'PNFI',    # Private Nonresidential Fixed Investment
+        'Investment_Residential': 'PRFI',       # Private Residential Fixed Investment
+        'Investment_Inventories': 'CBI',        # Change in Private Inventories
+    }
+
+    # Government Consumption & Investment (G)
+    government_series = {
+        'Govt_Total': 'GCE',                    # Government Consumption & Investment
+        'Govt_Federal': 'FGCE',                 # Federal Government
+        'Govt_Defense': 'FDEFX',                # Federal Defense
+        'Govt_Nondefense': 'FNDEX',             # Federal Nondefense
+        'Govt_State_Local': 'SLCE',             # State and Local Government
+    }
+
+    # Net Exports (X - M)
+    trade_series = {
+        'Exports_Total': 'EXPGS',               # Exports of Goods and Services
+        'Exports_Goods': 'EXPGSC1',             # Exports of Goods
+        'Exports_Services': 'EXPGSCA',          # Exports of Services
+        'Imports_Total': 'IMPGS',               # Imports of Goods and Services
+        'Imports_Goods': 'IMPGSC1',             # Imports of Goods
+        'Imports_Services': 'IMPGSCA',          # Imports of Services
+        'Net_Exports': 'NETEXP',                # Net Exports
+    }
+
+    try:
+        # Download consumption
+        print("\n--- Personal Consumption Expenditures (C) ---")
+        consumption_data = {}
+        for name, code in consumption_series.items():
+            try:
+                print(f"  Downloading {name} ({code})...")
+                df = pdr.DataReader(code, 'fred', start=start_date, end=end_date)
+                consumption_data[name] = df.iloc[:, 0]
+            except Exception as e:
+                print(f"  Warning: Could not download {name}: {e}")
+
+        consumption_df = pd.DataFrame(consumption_data)
+
+        # Download investment
+        print("\n--- Gross Private Domestic Investment (I) ---")
+        investment_data = {}
+        for name, code in investment_series.items():
+            try:
+                print(f"  Downloading {name} ({code})...")
+                df = pdr.DataReader(code, 'fred', start=start_date, end=end_date)
+                investment_data[name] = df.iloc[:, 0]
+            except Exception as e:
+                print(f"  Warning: Could not download {name}: {e}")
+
+        investment_df = pd.DataFrame(investment_data)
+
+        # Download government spending
+        print("\n--- Government Consumption & Investment (G) ---")
+        government_data = {}
+        for name, code in government_series.items():
+            try:
+                print(f"  Downloading {name} ({code})...")
+                df = pdr.DataReader(code, 'fred', start=start_date, end=end_date)
+                government_data[name] = df.iloc[:, 0]
+            except Exception as e:
+                print(f"  Warning: Could not download {name}: {e}")
+
+        government_df = pd.DataFrame(government_data)
+
+        # Download trade data
+        print("\n--- Net Exports (X - M) ---")
+        trade_data = {}
+        for name, code in trade_series.items():
+            try:
+                print(f"  Downloading {name} ({code})...")
+                df = pdr.DataReader(code, 'fred', start=start_date, end=end_date)
+                trade_data[name] = df.iloc[:, 0]
+            except Exception as e:
+                print(f"  Warning: Could not download {name}: {e}")
+
+        trade_df = pd.DataFrame(trade_data)
+
+        # Combine all data
+        combined_df = pd.concat([consumption_df, investment_df, government_df, trade_df], axis=1)
+
+        result = {
+            'consumption': consumption_df,
+            'investment': investment_df,
+            'government': government_df,
+            'trade': trade_df,
+            'combined': combined_df
+        }
+
+        pd.to_pickle(result, cache_file)
+        print(f"\nCached GDP components to {cache_file}")
+
+        # Print summary
+        print("\n" + "=" * 60)
+        print("=== GDP Components Summary ===")
+        print("=" * 60)
+        print(f"Date range: {combined_df.index.min()} to {combined_df.index.max()}")
+        print(f"Observations: {len(combined_df)}")
+        print(f"Consumption (C): {len(consumption_df.columns)} series")
+        print(f"Investment (I): {len(investment_df.columns)} series")
+        print(f"Government (G): {len(government_df.columns)} series")
+        print(f"Trade (X-M): {len(trade_df.columns)} series")
+
+        return result
+
+    except Exception as e:
+        print(f"Error downloading GDP components: {e}")
+        return None
+
+
+def load_gdp_by_industry_data(
+    start_date='2000-01-01',
+    end_date=None,
+    cache_path='./data/fred'
+):
+    """
+    Load GDP by industry/sector data from FRED.
+
+    Provides value added by major industry sectors.
+
+    Parameters:
+    -----------
+    start_date : str
+        Start date in 'YYYY-MM-DD' format
+    end_date : str
+        End date in 'YYYY-MM-DD' format (defaults to today)
+    cache_path : str
+        Directory to cache downloaded data
+
+    Returns:
+    --------
+    dict : Dictionary containing:
+        - 'industries': GDP by industry
+        - 'combined': All industry data
+    """
+    if end_date is None:
+        end_date = datetime.today().strftime('%Y-%m-%d')
+
+    os.makedirs(cache_path, exist_ok=True)
+    cache_file = os.path.join(cache_path, f'gdp_industry_{start_date}_{end_date}.pkl')
+
+    if os.path.exists(cache_file):
+        print(f"Loading cached GDP by industry from {cache_file}")
+        return pd.read_pickle(cache_file)
+
+    print("Downloading GDP by industry from FRED...")
+
+    # GDP by industry (Value Added)
+    industry_series = {
+        'VA_Private_Industries': 'VAPGDP',      # Private Industries Value Added
+        'VA_Agriculture': 'VAGDPAG',            # Agriculture, Forestry, Fishing
+        'VA_Mining': 'VAGDPMI',                 # Mining
+        'VA_Utilities': 'VAGDPUT',              # Utilities
+        'VA_Construction': 'VAGDPCO',           # Construction
+        'VA_Manufacturing': 'VAGDPMF',          # Manufacturing
+        'VA_Durable_Manufacturing': 'VAGDPDG',  # Durable Goods Manufacturing
+        'VA_Nondurable_Manufacturing': 'VAGDPND',  # Nondurable Goods Manufacturing
+        'VA_Wholesale_Trade': 'VAGDPWT',        # Wholesale Trade
+        'VA_Retail_Trade': 'VAGDPRT',           # Retail Trade
+        'VA_Transportation': 'VAGDPTW',         # Transportation and Warehousing
+        'VA_Information': 'VAGDPIF',            # Information
+        'VA_Finance_Insurance': 'VAGDPFI',      # Finance and Insurance
+        'VA_Real_Estate': 'VAGDPRE',            # Real Estate
+        'VA_Professional_Services': 'VAGDPPS',  # Professional and Business Services
+        'VA_Education_Health': 'VAGDPEH',       # Educational Services, Health Care
+        'VA_Arts_Entertainment': 'VAGDPAR',     # Arts, Entertainment, Recreation
+        'VA_Government': 'VAGDPGV',             # Government
+    }
+
+    try:
+        print("\n--- GDP by Industry (Value Added) ---")
+        industry_data = {}
+        for name, code in industry_series.items():
+            try:
+                print(f"  Downloading {name} ({code})...")
+                df = pdr.DataReader(code, 'fred', start=start_date, end=end_date)
+                industry_data[name] = df.iloc[:, 0]
+            except Exception as e:
+                print(f"  Warning: Could not download {name}: {e}")
+
+        industry_df = pd.DataFrame(industry_data)
+
+        result = {
+            'industries': industry_df,
+            'combined': industry_df
+        }
+
+        pd.to_pickle(result, cache_file)
+        print(f"\nCached GDP by industry to {cache_file}")
+
+        # Print summary
+        print("\n" + "=" * 60)
+        print("=== GDP by Industry Summary ===")
+        print("=" * 60)
+        print(f"Date range: {industry_df.index.min()} to {industry_df.index.max()}")
+        print(f"Observations: {len(industry_df)}")
+        print(f"Industry sectors: {len(industry_df.columns)}")
+
+        return result
+
+    except Exception as e:
+        print(f"Error downloading GDP by industry: {e}")
+        return None
+
+
+def load_comprehensive_gdp_data(
+    start_date='2000-01-01',
+    end_date=None,
+    cache_path='./data/fred'
+):
+    """
+    Load comprehensive GDP dataset from FRED (2000-2025).
+
+    This function aggregates:
+    - Headline GDP (Nominal, Real, GNP)
+    - GDP growth rates
+    - Per capita GDP
+    - GDP components (C + I + G + NX)
+    - GDP by industry/sector
+
+    Parameters:
+    -----------
+    start_date : str
+        Start date in 'YYYY-MM-DD' format
+    end_date : str
+        End date in 'YYYY-MM-DD' format (defaults to today)
+    cache_path : str
+        Directory to cache downloaded data
+
+    Returns:
+    --------
+    dict : Dictionary containing:
+        - 'headline': GDP headline measures
+        - 'components': GDP expenditure components
+        - 'industries': GDP by industry
+        - 'combined': All GDP measures merged on date
+        - 'summary_stats': Summary statistics for all series
+    """
+    if end_date is None:
+        end_date = datetime.today().strftime('%Y-%m-%d')
+
+    os.makedirs(cache_path, exist_ok=True)
+    cache_file = os.path.join(
+        cache_path,
+        f'comprehensive_gdp_{start_date}_{end_date}.pkl'
+    )
+
+    if os.path.exists(cache_file):
+        print(f"Loading cached comprehensive GDP data from {cache_file}")
+        return pd.read_pickle(cache_file)
+
+    print("=" * 60)
+    print("Loading Comprehensive GDP Data (2000-2025)")
+    print("=" * 60)
+
+    # Load headline GDP
+    print("\n[1/3] Loading headline GDP measures...")
+    headline_data = load_gdp_data(start_date, end_date, cache_path)
+
+    # Load GDP components
+    print("\n[2/3] Loading GDP components (C + I + G + NX)...")
+    components_data = load_gdp_components_data(start_date, end_date, cache_path)
+
+    # Load GDP by industry
+    print("\n[3/3] Loading GDP by industry...")
+    industry_data = load_gdp_by_industry_data(start_date, end_date, cache_path)
+
+    # Combine all data
+    combined_dfs = []
+
+    if headline_data and 'combined' in headline_data:
+        combined_dfs.append(headline_data['combined'])
+
+    if components_data and 'combined' in components_data:
+        combined_dfs.append(components_data['combined'])
+
+    if industry_data and 'combined' in industry_data:
+        combined_dfs.append(industry_data['combined'])
+
+    if combined_dfs:
+        combined_df = pd.concat(combined_dfs, axis=1)
+        # Remove duplicate columns if any
+        combined_df = combined_df.loc[:, ~combined_df.columns.duplicated()]
+    else:
+        combined_df = pd.DataFrame()
+
+    # Calculate summary statistics
+    summary_stats = {}
+    if len(combined_df) > 0:
+        for col in combined_df.columns:
+            series = combined_df[col].dropna()
+            if len(series) > 0:
+                summary_stats[col] = {
+                    'count': len(series),
+                    'mean': series.mean(),
+                    'std': series.std(),
+                    'min': series.min(),
+                    'max': series.max(),
+                    'latest': series.iloc[-1],
+                    'start_date': series.index.min(),
+                    'end_date': series.index.max()
+                }
+
+    result = {
+        'headline': headline_data,
+        'components': components_data,
+        'industries': industry_data,
+        'combined': combined_df,
+        'summary_stats': summary_stats
+    }
+
+    pd.to_pickle(result, cache_file)
+    print(f"\nCached comprehensive GDP data to {cache_file}")
+
+    # Print final summary
+    print("\n" + "=" * 60)
+    print("=== Comprehensive GDP Summary ===")
+    print("=" * 60)
+    print(f"Total series loaded: {len(combined_df.columns)}")
+    print(f"Date range: {combined_df.index.min()} to {combined_df.index.max()}")
+    print(f"Total observations: {len(combined_df)}")
+
+    print("\n--- Series Categories ---")
+    if headline_data:
+        print(f"Headline GDP: {len(headline_data['combined'].columns)} series")
+    if components_data:
+        print(f"GDP components: {len(components_data['combined'].columns)} series")
+    if industry_data:
+        print(f"GDP by industry: {len(industry_data['combined'].columns)} series")
+
+    # Key metrics
+    if headline_data and 'headline' in headline_data:
+        hdl_df = headline_data['headline']
+        if 'GDP_Real' in hdl_df.columns:
+            latest_gdp = hdl_df['GDP_Real'].dropna().iloc[-1]
+            print(f"\nLatest Real GDP: ${latest_gdp:,.1f}B")
+
+    if headline_data and 'growth' in headline_data:
+        growth_df = headline_data['growth']
+        if 'GDP_Growth_QoQ' in growth_df.columns:
+            latest_growth = growth_df['GDP_Growth_QoQ'].dropna().iloc[-1]
+            print(f"Latest GDP Growth (QoQ Ann.): {latest_growth:.1f}%")
+
+    print("\n" + "=" * 60)
+    print("Citation:")
+    print("U.S. Bureau of Economic Analysis (BEA)")
+    print("Federal Reserve Economic Data (FRED), Federal Reserve Bank of St. Louis")
+    print("https://fred.stlouisfed.org/")
+    print("=" * 60)
+
+    return result
+
+
 def load_additional_macro_data(
     start_date='2000-01-01',
     end_date=None,
@@ -3817,6 +4384,10 @@ def load_data():
         - money_velocity: M1 and M2 velocity
         - fed_balance_sheet: Fed assets, reserves, balance sheet
         - comprehensive_m2: All M2 measures with growth rates
+        - gdp_data: Nominal/Real GDP, growth rates, per capita
+        - gdp_components: Consumption, Investment, Government, Trade
+        - gdp_industry: GDP by industry/sector (value added)
+        - comprehensive_gdp: All GDP measures combined
     """
     data_dict = {}
 
@@ -4060,6 +4631,54 @@ def load_data():
     except Exception as e:
         print(f"Error loading comprehensive M2 data: {e}")
         data_dict['comprehensive_m2'] = None
+
+    # Load GDP headline data
+    try:
+        data_dict['gdp_data'] = load_gdp_data(
+            start_date='2000-01-01',
+            end_date='2025-12-31',
+            cache_path='./data/fred'
+        )
+        print("Loaded GDP data")
+    except Exception as e:
+        print(f"Error loading GDP data: {e}")
+        data_dict['gdp_data'] = None
+
+    # Load GDP components (C + I + G + NX)
+    try:
+        data_dict['gdp_components'] = load_gdp_components_data(
+            start_date='2000-01-01',
+            end_date='2025-12-31',
+            cache_path='./data/fred'
+        )
+        print("Loaded GDP components data")
+    except Exception as e:
+        print(f"Error loading GDP components data: {e}")
+        data_dict['gdp_components'] = None
+
+    # Load GDP by industry
+    try:
+        data_dict['gdp_industry'] = load_gdp_by_industry_data(
+            start_date='2000-01-01',
+            end_date='2025-12-31',
+            cache_path='./data/fred'
+        )
+        print("Loaded GDP by industry data")
+    except Exception as e:
+        print(f"Error loading GDP by industry data: {e}")
+        data_dict['gdp_industry'] = None
+
+    # Load comprehensive GDP data (all GDP measures combined)
+    try:
+        data_dict['comprehensive_gdp'] = load_comprehensive_gdp_data(
+            start_date='2000-01-01',
+            end_date='2025-12-31',
+            cache_path='./data/fred'
+        )
+        print("Loaded comprehensive GDP data")
+    except Exception as e:
+        print(f"Error loading comprehensive GDP data: {e}")
+        data_dict['comprehensive_gdp'] = None
 
     return data_dict
 
