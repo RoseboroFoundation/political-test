@@ -44,9 +44,12 @@ pyarrow>=14.0.0
 # notebook>=7.0.0
 
 # For data visualization
-# matplotlib>=3.7.0
-# seaborn>=0.12.0
-# plotly>=5.15.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+plotly>=5.15.0
+
+# For Dashboard
+streamlit>=1.29.0
 
 # For testing
 # pytest>=7.4.0
