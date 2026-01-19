@@ -170,14 +170,19 @@ def send_pushover_notification(changes, current_state):
     # Current state
     pred = current_state.get('prediction', {})
     poll = current_state.get('polling', {})
-    primary = current_state.get('primary', {})
 
-    # Primary predictions
-    lines.append("PRIMARIES (Mar 3):")
-    r_primary = primary.get('republican', {})
-    d_primary = primary.get('democratic', {})
-    lines.append(f"  R: Abbott {r_primary.get('abbott', '85-90')}%")
-    lines.append(f"  D: Hinojosa {d_primary.get('hinojosa', '52-58')}%")
+    # Democratic Primary - Always show full field
+    lines.append("D PRIMARY (Mar 3):")
+    lines.append("  Hinojosa: 52-58% (frontrunner)")
+    lines.append("  Bell: 12-15%")
+    lines.append("  Cole: 8-10%")
+    lines.append("  +5 others: <5% each")
+    lines.append("  [White dropped out, endorsed Hinojosa]")
+
+    # Republican Primary
+    lines.append("")
+    lines.append("R PRIMARY (Mar 3):")
+    lines.append("  Abbott: 85-90%")
 
     # General election
     lines.append("")
