@@ -447,6 +447,40 @@ def render_sidebar():
                 )
 
         st.markdown("---")
+
+        # Morning Briefing Section
+        st.markdown("### Morning Briefing")
+        briefing_file = Path(__file__).parent / 'briefings' / 'latest_briefing.json'
+        if briefing_file.exists():
+            try:
+                with open(briefing_file, 'r') as f:
+                    briefing = json.load(f)
+                st.caption(f"Generated: {briefing.get('generated_at', 'N/A')}")
+
+                # Alerts
+                alerts = briefing.get('alerts', [])
+                if alerts:
+                    for alert in alerts:
+                        st.warning(f"{alert.get('message', '')}")
+
+                # News count
+                news_count = briefing.get('news_summary', {}).get('total_articles', 0)
+                st.metric("News Articles (24h)", news_count)
+
+                # Economic indicators
+                econ = briefing.get('economic_indicators', {})
+                if econ.get('vix'):
+                    st.metric("VIX", econ['vix'].get('value', 'N/A'))
+
+                with st.expander("View Full Briefing"):
+                    st.json(briefing)
+            except Exception as e:
+                st.caption("Briefing unavailable")
+        else:
+            st.caption("No briefing available yet")
+            st.caption("Run: python daily_update.py")
+
+        st.markdown("---")
         st.markdown(f"*Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M')}*")
 
 
