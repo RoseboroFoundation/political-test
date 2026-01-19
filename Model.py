@@ -66,6 +66,32 @@ class DescriptiveStatistics:
     """
 
     @staticmethod
+    def convert_decimals(df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Convert Decimal columns to float for compatibility with pandas operations.
+        Snowflake returns numeric columns as Decimal objects.
+
+        Args:
+            df: DataFrame potentially containing Decimal columns
+
+        Returns:
+            DataFrame with Decimal columns converted to float
+        """
+        if df is None or df.empty:
+            return df
+
+        from decimal import Decimal
+        for col in df.columns:
+            if df[col].dtype == object:
+                # Check if column contains Decimal objects
+                sample = df[col].dropna().head(1)
+                if len(sample) > 0 and isinstance(sample.iloc[0], Decimal):
+                    df[col] = df[col].apply(lambda x: float(x) if isinstance(x, Decimal) else x)
+            elif hasattr(df[col].dtype, 'name') and 'decimal' in str(df[col].dtype).lower():
+                df[col] = df[col].astype(float)
+        return df
+
+    @staticmethod
     def numeric_summary(series: pd.Series) -> Dict[str, float]:
         """
         Compute summary statistics for a numeric series.
@@ -187,12 +213,12 @@ class ElectionStatistics(DescriptiveStatistics):
         """Load election data from database."""
         if self.db:
             try:
-                self.data['statewide'] = self.db.run_query(
+                self.data['statewide'] = self.convert_decimals(self.db.run_query(
                     "SELECT * FROM ELECTION_RESULTS_STATEWIDE"
-                )
-                self.data['historical'] = self.db.run_query(
+                ))
+                self.data['historical'] = self.convert_decimals(self.db.run_query(
                     "SELECT * FROM ELECTION_HISTORICAL"
-                )
+                ))
             except Exception as e:
                 logger.warning(f"Could not load from database: {e}")
 
@@ -461,12 +487,12 @@ class CampaignFinanceStatistics(DescriptiveStatistics):
         """Load campaign finance data from database."""
         if self.db:
             try:
-                self.data['summary'] = self.db.run_query(
+                self.data['summary'] = self.convert_decimals(self.db.run_query(
                     "SELECT * FROM CAMPAIGN_FINANCE_SUMMARY"
-                )
-                self.data['expenditures'] = self.db.run_query(
+                ))
+                self.data['expenditures'] = self.convert_decimals(self.db.run_query(
                     "SELECT * FROM CAMPAIGN_FINANCE_EXPENDITURES"
-                )
+                ))
             except Exception as e:
                 logger.warning(f"Could not load from database: {e}")
 
@@ -732,10 +758,10 @@ class PollingStatistics(DescriptiveStatistics):
         """Load polling data from database."""
         if self.db:
             try:
-                self.data['polls'] = self.db.run_query("SELECT * FROM POLLS")
-                self.data['averages'] = self.db.run_query("SELECT * FROM POLL_AVERAGES")
-                self.data['pollsters'] = self.db.run_query("SELECT * FROM POLLSTERS")
-                self.data['trends'] = self.db.run_query("SELECT * FROM POLL_TRENDS")
+                self.data['polls'] = self.convert_decimals(self.db.run_query("SELECT * FROM POLLS"))
+                self.data['averages'] = self.convert_decimals(self.db.run_query("SELECT * FROM POLL_AVERAGES"))
+                self.data['pollsters'] = self.convert_decimals(self.db.run_query("SELECT * FROM POLLSTERS"))
+                self.data['trends'] = self.convert_decimals(self.db.run_query("SELECT * FROM POLL_TRENDS"))
             except Exception as e:
                 logger.warning(f"Could not load from database: {e}")
 
@@ -947,9 +973,9 @@ class NewsStatistics(DescriptiveStatistics):
         """Load news data from database."""
         if self.db:
             try:
-                self.data['articles'] = self.db.run_query("SELECT * FROM NEWS_ARTICLES")
-                self.data['coverage'] = self.db.run_query("SELECT * FROM NEWS_COVERAGE_SUMMARY")
-                self.data['by_topic'] = self.db.run_query("SELECT * FROM NEWS_BY_TOPIC")
+                self.data['articles'] = self.convert_decimals(self.db.run_query("SELECT * FROM NEWS_ARTICLES"))
+                self.data['coverage'] = self.convert_decimals(self.db.run_query("SELECT * FROM NEWS_COVERAGE_SUMMARY"))
+                self.data['by_topic'] = self.convert_decimals(self.db.run_query("SELECT * FROM NEWS_BY_TOPIC"))
             except Exception as e:
                 logger.warning(f"Could not load from database: {e}")
 
