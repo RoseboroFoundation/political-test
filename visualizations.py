@@ -105,7 +105,7 @@ class Visualizer:
     def _apply_dark_theme(self, fig: go.Figure) -> go.Figure:
         """Apply dark theme to a Plotly figure."""
         fig.update_layout(**DARK_LAYOUT)
-        return self._apply_dark_theme(fig)
+        return fig
 
     # =========================================================================
     # ELECTION VISUALIZATIONS
