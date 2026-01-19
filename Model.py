@@ -1350,6 +1350,361 @@ class CultureWarStatistics(DescriptiveStatistics):
 
 
 # =============================================================================
+# MARKET STATISTICS
+# =============================================================================
+class MarketStatistics(DescriptiveStatistics):
+    """
+    Computes descriptive statistics for market data (stocks, VIX, Fama-French factors).
+    """
+
+    def __init__(self, db_manager=None, data: Dict[str, pd.DataFrame] = None):
+        """
+        Initialize Market Statistics.
+
+        Args:
+            db_manager: DatabaseManager instance for Snowflake queries
+            data: Dictionary of DataFrames with market data
+        """
+        self.db = db_manager
+        self.data = data or {}
+        self.results = {}
+
+    def load_data(self) -> None:
+        """Load market data from database."""
+        if self.db:
+            try:
+                self.data['vix'] = self.convert_decimals(self.db.run_query(
+                    "SELECT * FROM VIX_DAILY ORDER BY DATE"
+                ))
+                self.data['ff3'] = self.convert_decimals(self.db.run_query(
+                    "SELECT * FROM FAMA_FRENCH_FF3 ORDER BY DATE"
+                ))
+                self.data['stock_prices'] = self.convert_decimals(self.db.run_query(
+                    "SELECT * FROM STOCK_DAILY_PRICES ORDER BY DATE"
+                ))
+            except Exception as e:
+                logger.warning(f"Could not load market data from database: {e}")
+
+    def load_from_files(self) -> None:
+        """Load market data from local files."""
+        try:
+            # Try to load VIX data
+            vix_path = './vix_data_2000_2025.csv'
+            if os.path.exists(vix_path):
+                self.data['vix'] = pd.read_csv(vix_path)
+                logger.info(f"Loaded VIX data from {vix_path}")
+        except Exception as e:
+            logger.warning(f"Could not load VIX data: {e}")
+
+    def compute_all(self) -> Dict[str, Any]:
+        """Compute all market statistics."""
+        logger.info("Computing market statistics...")
+
+        self.results = {
+            'vix_analysis': self._vix_analysis(),
+            'factor_analysis': self._factor_analysis(),
+            'stock_analysis': self._stock_analysis()
+        }
+
+        return self.results
+
+    def _vix_analysis(self) -> Dict[str, Any]:
+        """Analyze VIX volatility data."""
+        if 'vix' not in self.data or self.data['vix'] is None:
+            return {}
+
+        df = self.data['vix']
+        if df.empty:
+            return {}
+
+        vix_col = 'VIX' if 'VIX' in df.columns else 'vix'
+
+        if vix_col not in df.columns:
+            return {}
+
+        vix_series = pd.to_numeric(df[vix_col], errors='coerce').dropna()
+
+        stats = {
+            'summary': self.numeric_summary(vix_series),
+            'current': float(vix_series.iloc[-1]) if len(vix_series) > 0 else None,
+            'regime': 'High Volatility' if vix_series.iloc[-1] > 20 else 'Low Volatility' if len(vix_series) > 0 else None
+        }
+
+        # High volatility days (VIX > 30)
+        high_vol_days = (vix_series > 30).sum()
+        stats['high_volatility_days'] = int(high_vol_days)
+        stats['high_volatility_pct'] = round(high_vol_days / len(vix_series) * 100, 2) if len(vix_series) > 0 else 0
+
+        return stats
+
+    def _factor_analysis(self) -> Dict[str, Any]:
+        """Analyze Fama-French factors."""
+        if 'ff3' not in self.data or self.data['ff3'] is None:
+            return {}
+
+        df = self.data['ff3']
+        if df.empty:
+            return {}
+
+        stats = {}
+
+        for col in ['MKT_RF', 'SMB', 'HML', 'mkt_rf', 'smb', 'hml']:
+            if col in df.columns:
+                col_upper = col.upper()
+                series = pd.to_numeric(df[col], errors='coerce').dropna()
+                if len(series) > 0:
+                    stats[col_upper] = {
+                        'mean': round(series.mean(), 4),
+                        'std': round(series.std(), 4),
+                        'sharpe': round(series.mean() / series.std() * np.sqrt(252), 2) if series.std() > 0 else 0
+                    }
+
+        return stats
+
+    def _stock_analysis(self) -> Dict[str, Any]:
+        """Analyze stock price data."""
+        if 'stock_prices' not in self.data or self.data['stock_prices'] is None:
+            return {}
+
+        df = self.data['stock_prices']
+        if df.empty:
+            return {}
+
+        ticker_col = 'TICKER' if 'TICKER' in df.columns else 'ticker'
+
+        if ticker_col not in df.columns:
+            return {}
+
+        stats = {
+            'unique_tickers': df[ticker_col].nunique(),
+            'total_records': len(df)
+        }
+
+        return stats
+
+    def get_summary(self) -> Dict[str, Any]:
+        """Get high-level summary for display."""
+        if not self.results:
+            self.compute_all()
+
+        vix = self.results.get('vix_analysis', {})
+
+        return {
+            'vix_mean': vix.get('summary', {}).get('mean', 'N/A'),
+            'vix_current': vix.get('current', 'N/A'),
+            'vix_regime': vix.get('regime', 'N/A'),
+            'high_vol_pct': vix.get('high_volatility_pct', 'N/A')
+        }
+
+
+# =============================================================================
+# MACROECONOMIC STATISTICS
+# =============================================================================
+class MacroeconomicStatistics(DescriptiveStatistics):
+    """
+    Computes descriptive statistics for macroeconomic data.
+    """
+
+    def __init__(self, db_manager=None, data: Dict[str, pd.DataFrame] = None):
+        """
+        Initialize Macroeconomic Statistics.
+
+        Args:
+            db_manager: DatabaseManager instance for Snowflake queries
+            data: Dictionary of DataFrames with macroeconomic data
+        """
+        self.db = db_manager
+        self.data = data or {}
+        self.results = {}
+
+    def load_data(self) -> None:
+        """Load macroeconomic data from database."""
+        if self.db:
+            try:
+                self.data['cpi'] = self.convert_decimals(self.db.run_query(
+                    "SELECT * FROM MACRO_CPI ORDER BY DATE"
+                ))
+                self.data['gdp'] = self.convert_decimals(self.db.run_query(
+                    "SELECT * FROM MACRO_GDP ORDER BY DATE"
+                ))
+                self.data['unemployment'] = self.convert_decimals(self.db.run_query(
+                    "SELECT * FROM MACRO_UNEMPLOYMENT ORDER BY DATE"
+                ))
+                self.data['treasury_yields'] = self.convert_decimals(self.db.run_query(
+                    "SELECT * FROM MACRO_TREASURY_YIELDS ORDER BY DATE"
+                ))
+                self.data['fed_funds'] = self.convert_decimals(self.db.run_query(
+                    "SELECT * FROM MACRO_POLICY_RATES ORDER BY DATE"
+                ))
+            except Exception as e:
+                logger.warning(f"Could not load macro data from database: {e}")
+
+    def load_from_files(self) -> None:
+        """Load macroeconomic data from local files."""
+        try:
+            macro_path = './full_macro_data_2000_2025.csv'
+            if os.path.exists(macro_path):
+                self.data['macro'] = pd.read_csv(macro_path)
+                logger.info(f"Loaded macro data from {macro_path}")
+        except Exception as e:
+            logger.warning(f"Could not load macro data: {e}")
+
+    def compute_all(self) -> Dict[str, Any]:
+        """Compute all macroeconomic statistics."""
+        logger.info("Computing macroeconomic statistics...")
+
+        self.results = {
+            'inflation_analysis': self._inflation_analysis(),
+            'gdp_analysis': self._gdp_analysis(),
+            'employment_analysis': self._employment_analysis(),
+            'rates_analysis': self._rates_analysis()
+        }
+
+        return self.results
+
+    def _inflation_analysis(self) -> Dict[str, Any]:
+        """Analyze inflation data."""
+        if 'cpi' not in self.data or self.data['cpi'] is None:
+            # Try macro file
+            if 'macro' in self.data and self.data['macro'] is not None:
+                df = self.data['macro']
+                for col in ['CPI_YOY', 'cpi_yoy', 'CPIAUCSL']:
+                    if col in df.columns:
+                        series = pd.to_numeric(df[col], errors='coerce').dropna()
+                        if len(series) > 0:
+                            return {
+                                'cpi_summary': self.numeric_summary(series),
+                                'current': float(series.iloc[-1]),
+                                'trend': 'Rising' if series.iloc[-1] > series.iloc[-12] else 'Falling' if len(series) > 12 else 'Unknown'
+                            }
+            return {}
+
+        df = self.data['cpi']
+        if df.empty:
+            return {}
+
+        cpi_col = 'CPI_YOY' if 'CPI_YOY' in df.columns else 'cpi_yoy'
+
+        if cpi_col not in df.columns:
+            return {}
+
+        cpi_series = pd.to_numeric(df[cpi_col], errors='coerce').dropna()
+
+        stats = {
+            'cpi_summary': self.numeric_summary(cpi_series),
+            'current': float(cpi_series.iloc[-1]) if len(cpi_series) > 0 else None,
+            'trend': 'Rising' if len(cpi_series) > 12 and cpi_series.iloc[-1] > cpi_series.iloc[-12] else 'Falling'
+        }
+
+        return stats
+
+    def _gdp_analysis(self) -> Dict[str, Any]:
+        """Analyze GDP data."""
+        if 'gdp' not in self.data or self.data['gdp'] is None:
+            return {}
+
+        df = self.data['gdp']
+        if df.empty:
+            return {}
+
+        growth_col = 'GDP_GROWTH_YOY' if 'GDP_GROWTH_YOY' in df.columns else 'gdp_growth_yoy'
+
+        if growth_col not in df.columns:
+            return {}
+
+        growth_series = pd.to_numeric(df[growth_col], errors='coerce').dropna()
+
+        stats = {
+            'growth_summary': self.numeric_summary(growth_series),
+            'current_growth': float(growth_series.iloc[-1]) if len(growth_series) > 0 else None,
+            'recession_quarters': int((growth_series < 0).sum()),
+            'expansion_quarters': int((growth_series >= 0).sum())
+        }
+
+        return stats
+
+    def _employment_analysis(self) -> Dict[str, Any]:
+        """Analyze employment data."""
+        if 'unemployment' not in self.data or self.data['unemployment'] is None:
+            return {}
+
+        df = self.data['unemployment']
+        if df.empty:
+            return {}
+
+        unemp_col = 'UNEMPLOYMENT_RATE_U3' if 'UNEMPLOYMENT_RATE_U3' in df.columns else 'unemployment_rate_u3'
+
+        if unemp_col not in df.columns:
+            return {}
+
+        unemp_series = pd.to_numeric(df[unemp_col], errors='coerce').dropna()
+
+        stats = {
+            'unemployment_summary': self.numeric_summary(unemp_series),
+            'current_rate': float(unemp_series.iloc[-1]) if len(unemp_series) > 0 else None,
+            'peak_rate': float(unemp_series.max()),
+            'trough_rate': float(unemp_series.min())
+        }
+
+        return stats
+
+    def _rates_analysis(self) -> Dict[str, Any]:
+        """Analyze interest rate data."""
+        if 'treasury_yields' not in self.data or self.data['treasury_yields'] is None:
+            return {}
+
+        df = self.data['treasury_yields']
+        if df.empty:
+            return {}
+
+        stats = {}
+
+        # 10-year yield analysis
+        y10_col = 'YIELD_10Y' if 'YIELD_10Y' in df.columns else 'yield_10y'
+        if y10_col in df.columns:
+            y10_series = pd.to_numeric(df[y10_col], errors='coerce').dropna()
+            if len(y10_series) > 0:
+                stats['yield_10y'] = {
+                    'current': float(y10_series.iloc[-1]),
+                    'mean': round(y10_series.mean(), 2),
+                    'min': round(y10_series.min(), 2),
+                    'max': round(y10_series.max(), 2)
+                }
+
+        # Yield curve (10Y - 2Y)
+        y2_col = 'YIELD_2Y' if 'YIELD_2Y' in df.columns else 'yield_2y'
+        if y10_col in df.columns and y2_col in df.columns:
+            spread = pd.to_numeric(df[y10_col], errors='coerce') - pd.to_numeric(df[y2_col], errors='coerce')
+            spread = spread.dropna()
+            if len(spread) > 0:
+                stats['yield_curve'] = {
+                    'current_spread': round(float(spread.iloc[-1]), 2),
+                    'inverted': spread.iloc[-1] < 0,
+                    'inversions': int((spread < 0).sum())
+                }
+
+        return stats
+
+    def get_summary(self) -> Dict[str, Any]:
+        """Get high-level summary for display."""
+        if not self.results:
+            self.compute_all()
+
+        inflation = self.results.get('inflation_analysis', {})
+        gdp = self.results.get('gdp_analysis', {})
+        employment = self.results.get('employment_analysis', {})
+        rates = self.results.get('rates_analysis', {})
+
+        return {
+            'current_cpi': inflation.get('current', 'N/A'),
+            'current_gdp_growth': gdp.get('current_growth', 'N/A'),
+            'current_unemployment': employment.get('current_rate', 'N/A'),
+            'yield_10y': rates.get('yield_10y', {}).get('current', 'N/A'),
+            'yield_curve_inverted': rates.get('yield_curve', {}).get('inverted', 'N/A')
+        }
+
+
+# =============================================================================
 # CORRELATION ANALYSIS
 # =============================================================================
 class CorrelationAnalysis:
@@ -1466,6 +1821,8 @@ class StatisticalModelManager:
         self.polling_stats = None
         self.news_stats = None
         self.culture_war_stats = None
+        self.market_stats = None
+        self.macro_stats = None
         self.correlation_analysis = None
 
         self.all_results = {}
@@ -1490,6 +1847,8 @@ class StatisticalModelManager:
         self.polling_stats = PollingStatistics(db_manager=self.db_manager)
         self.news_stats = NewsStatistics(db_manager=self.db_manager)
         self.culture_war_stats = CultureWarStatistics(db_manager=self.db_manager)
+        self.market_stats = MarketStatistics(db_manager=self.db_manager)
+        self.macro_stats = MacroeconomicStatistics(db_manager=self.db_manager)
 
         # Load data from database
         self.election_stats.load_data()
@@ -1497,10 +1856,16 @@ class StatisticalModelManager:
         self.polling_stats.load_data()
         self.news_stats.load_data()
         self.culture_war_stats.load_data()
+        self.market_stats.load_data()
+        self.macro_stats.load_data()
 
-        # Also try to load culture war data from CSV if not in database
+        # Also try to load from files if not in database
         if not self.culture_war_stats.data.get('events'):
             self.culture_war_stats.load_from_csv()
+        if not self.market_stats.data.get('vix'):
+            self.market_stats.load_from_files()
+        if not self.macro_stats.data.get('cpi'):
+            self.macro_stats.load_from_files()
 
         return True
 
@@ -1540,6 +1905,14 @@ class StatisticalModelManager:
         self.culture_war_stats = CultureWarStatistics()
         self.culture_war_stats.load_from_csv()
 
+        # Load market data from files
+        self.market_stats = MarketStatistics()
+        self.market_stats.load_from_files()
+
+        # Load macro data from files
+        self.macro_stats = MacroeconomicStatistics()
+        self.macro_stats.load_from_files()
+
         return True
 
     def run_all_statistics(self) -> Dict[str, Any]:
@@ -1556,6 +1929,14 @@ class StatisticalModelManager:
         # Culture war statistics
         if self.culture_war_stats:
             self.all_results['culture_war'] = self.culture_war_stats.compute_all()
+
+        # Market statistics
+        if self.market_stats:
+            self.all_results['market'] = self.market_stats.compute_all()
+
+        # Macroeconomic statistics
+        if self.macro_stats:
+            self.all_results['macroeconomic'] = self.macro_stats.compute_all()
 
         # Cross-dataset correlations
         self.correlation_analysis = CorrelationAnalysis(
@@ -1665,6 +2046,47 @@ class StatisticalModelManager:
                 print(f"  Peak Year: {temporal.get('peak_year', 'N/A')} ({temporal.get('peak_year_count', 'N/A')} events)")
                 print(f"  Trend: {temporal.get('trend_direction', 'N/A')}")
 
+        # Market Statistics
+        if 'market' in self.all_results:
+            print("\n" + "-" * 50)
+            print("MARKET STATISTICS")
+            print("-" * 50)
+
+            vix = self.all_results['market'].get('vix_analysis', {})
+            if vix:
+                summary = vix.get('summary', {})
+                print(f"  VIX Mean: {summary.get('mean', 'N/A')}")
+                print(f"  VIX Current: {vix.get('current', 'N/A')}")
+                print(f"  Market Regime: {vix.get('regime', 'N/A')}")
+                print(f"  High Volatility Days: {vix.get('high_volatility_pct', 'N/A')}%")
+
+        # Macroeconomic Statistics
+        if 'macroeconomic' in self.all_results:
+            print("\n" + "-" * 50)
+            print("MACROECONOMIC STATISTICS")
+            print("-" * 50)
+
+            inflation = self.all_results['macroeconomic'].get('inflation_analysis', {})
+            if inflation:
+                print(f"  Current CPI (YoY): {inflation.get('current', 'N/A')}%")
+                print(f"  Inflation Trend: {inflation.get('trend', 'N/A')}")
+
+            gdp = self.all_results['macroeconomic'].get('gdp_analysis', {})
+            if gdp:
+                print(f"  Current GDP Growth: {gdp.get('current_growth', 'N/A')}%")
+
+            employment = self.all_results['macroeconomic'].get('employment_analysis', {})
+            if employment:
+                print(f"  Current Unemployment: {employment.get('current_rate', 'N/A')}%")
+
+            rates = self.all_results['macroeconomic'].get('rates_analysis', {})
+            if rates:
+                y10 = rates.get('yield_10y', {})
+                print(f"  10-Year Treasury Yield: {y10.get('current', 'N/A')}%")
+                curve = rates.get('yield_curve', {})
+                if curve:
+                    print(f"  Yield Curve Inverted: {curve.get('inverted', 'N/A')}")
+
         print("\n" + "=" * 70)
 
     def export_results(self, output_dir: str = OUTPUT_DIR) -> Dict[str, str]:
@@ -1753,6 +2175,16 @@ def main():
         help='Run culture war statistics only'
     )
     parser.add_argument(
+        '--market', '-m',
+        action='store_true',
+        help='Run market statistics (VIX, Fama-French) only'
+    )
+    parser.add_argument(
+        '--macro',
+        action='store_true',
+        help='Run macroeconomic statistics only'
+    )
+    parser.add_argument(
         '--correlations', '-c',
         action='store_true',
         help='Run cross-dataset correlation analysis'
@@ -1781,7 +2213,7 @@ def main():
     args = parser.parse_args()
 
     # Default to summary if no specific option selected
-    if not any([args.summary, args.elections, args.finance, args.polling, args.news, args.culture_war, args.correlations]):
+    if not any([args.summary, args.elections, args.finance, args.polling, args.news, args.culture_war, args.market, args.macro, args.correlations]):
         args.summary = True
 
     # Initialize manager
@@ -1813,6 +2245,12 @@ def main():
 
             if args.culture_war:
                 results['culture_war'] = manager.culture_war_stats.compute_all()
+
+            if args.market:
+                results['market'] = manager.market_stats.compute_all()
+
+            if args.macro:
+                results['macroeconomic'] = manager.macro_stats.compute_all()
 
             if args.correlations:
                 manager.run_all_statistics()  # Need all stats for correlations

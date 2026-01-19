@@ -426,6 +426,398 @@ SNOWFLAKE_TABLES = {
         },
         'primary_key': ['TABLE_NAME', 'COLUMN_NAME'],
         'description': 'Data dictionary metadata'
+    },
+
+    # Culture War Tables
+    'CULTURE_WAR_EVENTS': {
+        'source_key': 'culture_war_events',
+        'columns': {
+            'EVENT_ID': 'INTEGER AUTOINCREMENT',
+            'COMPANY': 'VARCHAR(200)',
+            'YEAR': 'INTEGER',
+            'CULTURE_WAR_EVENT': 'VARCHAR(1000)',
+            'EVENT_DATE': 'DATE',
+            'INDUSTRY': 'VARCHAR(200)',
+            'TICKER': 'VARCHAR(10)',
+            'ESTIMATED_POLITICAL_LEANING': 'VARCHAR(50)',
+            'POLITICAL_LEANING_JUSTIFICATIONS': 'VARCHAR(2000)',
+            'NAICS_CODE': 'VARCHAR(20)',
+            'CONTROL_FIRM': 'VARCHAR(200)',
+            'CONTROL_TICKER': 'VARCHAR(10)',
+            'RATIONALE': 'VARCHAR(1000)'
+        },
+        'primary_key': ['EVENT_ID'],
+        'description': 'Culture war events by company'
+    },
+    'CULTURE_WAR_STOCK_IMPACT': {
+        'source_key': 'culture_war_stock_impact',
+        'columns': {
+            'IMPACT_ID': 'INTEGER AUTOINCREMENT',
+            'TICKER': 'VARCHAR(10)',
+            'EVENT_DATE': 'DATE',
+            'PRICE_BEFORE': 'FLOAT',
+            'PRICE_AFTER': 'FLOAT',
+            'RETURN_1D': 'FLOAT',
+            'RETURN_5D': 'FLOAT',
+            'RETURN_30D': 'FLOAT',
+            'ABNORMAL_RETURN': 'FLOAT',
+            'VOLUME_CHANGE': 'FLOAT',
+            'VOLATILITY': 'FLOAT'
+        },
+        'primary_key': ['IMPACT_ID'],
+        'description': 'Stock price impact around culture war events'
+    },
+    'CULTURE_WAR_SUMMARY': {
+        'source_key': 'culture_war_summary',
+        'columns': {
+            'COMPANY': 'VARCHAR(200)',
+            'TICKER': 'VARCHAR(10)',
+            'INDUSTRY': 'VARCHAR(200)',
+            'POLITICAL_LEANING': 'VARCHAR(50)',
+            'EVENT_COUNT': 'INTEGER',
+            'AVG_STOCK_IMPACT': 'FLOAT',
+            'AVG_ABNORMAL_RETURN': 'FLOAT',
+            'NEWS_ARTICLE_COUNT': 'INTEGER',
+            'INSIDER_TRADES_COUNT': 'INTEGER'
+        },
+        'primary_key': ['COMPANY'],
+        'description': 'Summary statistics by company'
+    },
+
+    # Stock Market Tables
+    'STOCK_DAILY_PRICES': {
+        'source_key': 'stock_daily_prices',
+        'columns': {
+            'PRICE_ID': 'INTEGER AUTOINCREMENT',
+            'TICKER': 'VARCHAR(10)',
+            'DATE': 'DATE',
+            'OPEN': 'FLOAT',
+            'HIGH': 'FLOAT',
+            'LOW': 'FLOAT',
+            'CLOSE': 'FLOAT',
+            'ADJ_CLOSE': 'FLOAT',
+            'VOLUME': 'BIGINT'
+        },
+        'primary_key': ['PRICE_ID'],
+        'description': 'Daily OHLCV stock prices'
+    },
+    'STOCK_RETURNS': {
+        'source_key': 'stock_returns',
+        'columns': {
+            'RETURN_ID': 'INTEGER AUTOINCREMENT',
+            'TICKER': 'VARCHAR(10)',
+            'DATE': 'DATE',
+            'DAILY_RETURN': 'FLOAT',
+            'WEEKLY_RETURN': 'FLOAT',
+            'MONTHLY_RETURN': 'FLOAT',
+            'YTD_RETURN': 'FLOAT',
+            'CUMULATIVE_RETURN': 'FLOAT'
+        },
+        'primary_key': ['RETURN_ID'],
+        'description': 'Calculated stock returns by period'
+    },
+
+    # VIX Volatility Tables
+    'VIX_DAILY': {
+        'source_key': 'vix_daily',
+        'columns': {
+            'DATE': 'DATE',
+            'VIX': 'FLOAT',
+            'VIX_CHANGE': 'FLOAT',
+            'VIX_PCT_CHANGE': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Daily VIX volatility index values'
+    },
+
+    # Fama-French Factor Tables
+    'FAMA_FRENCH_FF3': {
+        'source_key': 'ff3_daily',
+        'columns': {
+            'DATE': 'DATE',
+            'MKT_RF': 'FLOAT',
+            'SMB': 'FLOAT',
+            'HML': 'FLOAT',
+            'RF': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Fama-French 3-Factor model daily data'
+    },
+    'FAMA_FRENCH_FF5': {
+        'source_key': 'ff5_daily',
+        'columns': {
+            'DATE': 'DATE',
+            'MKT_RF': 'FLOAT',
+            'SMB': 'FLOAT',
+            'HML': 'FLOAT',
+            'RMW': 'FLOAT',
+            'CMA': 'FLOAT',
+            'RF': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Fama-French 5-Factor model daily data'
+    },
+    'FAMA_FRENCH_MOMENTUM': {
+        'source_key': 'momentum',
+        'columns': {
+            'DATE': 'DATE',
+            'MOM': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Momentum factor daily data'
+    },
+
+    # Form 4 Insider Trading Tables
+    'FORM4_TRANSACTIONS': {
+        'source_key': 'form4_transactions',
+        'columns': {
+            'TRANSACTION_ID': 'INTEGER AUTOINCREMENT',
+            'TICKER': 'VARCHAR(10)',
+            'CIK': 'VARCHAR(20)',
+            'FILING_DATE': 'DATE',
+            'TRANSACTION_DATE': 'DATE',
+            'INSIDER_NAME': 'VARCHAR(200)',
+            'INSIDER_TITLE': 'VARCHAR(200)',
+            'TRANSACTION_TYPE': 'VARCHAR(20)',
+            'SHARES': 'BIGINT',
+            'PRICE': 'FLOAT',
+            'VALUE': 'NUMBER(15,2)',
+            'SHARES_OWNED_AFTER': 'BIGINT',
+            'DIRECT_INDIRECT': 'VARCHAR(10)',
+            'FORM_TYPE': 'VARCHAR(10)'
+        },
+        'primary_key': ['TRANSACTION_ID'],
+        'description': 'SEC Form 4 insider trading transactions'
+    },
+    'FORM4_SUMMARY': {
+        'source_key': 'form4_summary',
+        'columns': {
+            'TICKER': 'VARCHAR(10)',
+            'TOTAL_TRANSACTIONS': 'INTEGER',
+            'TOTAL_BUYS': 'INTEGER',
+            'TOTAL_SELLS': 'INTEGER',
+            'NET_SHARES': 'BIGINT',
+            'NET_VALUE': 'NUMBER(15,2)',
+            'UNIQUE_INSIDERS': 'INTEGER'
+        },
+        'primary_key': ['TICKER'],
+        'description': 'Insider trading summary by ticker'
+    },
+
+    # Macroeconomic Inflation Tables
+    'MACRO_CPI': {
+        'source_key': 'macro_cpi',
+        'columns': {
+            'DATE': 'DATE',
+            'CPI_ALL': 'FLOAT',
+            'CPI_CORE': 'FLOAT',
+            'CPI_YOY': 'FLOAT',
+            'CPI_MOM': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Consumer Price Index data'
+    },
+    'MACRO_PCE': {
+        'source_key': 'macro_pce',
+        'columns': {
+            'DATE': 'DATE',
+            'PCE': 'FLOAT',
+            'PCE_CORE': 'FLOAT',
+            'PCE_YOY': 'FLOAT',
+            'PCE_MOM': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Personal Consumption Expenditures Price Index'
+    },
+    'MACRO_INFLATION_EXPECTATIONS': {
+        'source_key': 'inflation_expectations',
+        'columns': {
+            'DATE': 'DATE',
+            'BREAKEVEN_5Y': 'FLOAT',
+            'BREAKEVEN_10Y': 'FLOAT',
+            'MICHIGAN_EXPECTED': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Inflation expectations data'
+    },
+
+    # Macroeconomic Rates Tables
+    'MACRO_TREASURY_YIELDS': {
+        'source_key': 'treasury_yields',
+        'columns': {
+            'DATE': 'DATE',
+            'YIELD_1M': 'FLOAT',
+            'YIELD_3M': 'FLOAT',
+            'YIELD_6M': 'FLOAT',
+            'YIELD_1Y': 'FLOAT',
+            'YIELD_2Y': 'FLOAT',
+            'YIELD_5Y': 'FLOAT',
+            'YIELD_10Y': 'FLOAT',
+            'YIELD_30Y': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Treasury yield curve data'
+    },
+    'MACRO_POLICY_RATES': {
+        'source_key': 'policy_rates',
+        'columns': {
+            'DATE': 'DATE',
+            'FED_FUNDS': 'FLOAT',
+            'DISCOUNT_RATE': 'FLOAT',
+            'PRIME_RATE': 'FLOAT',
+            'SOFR': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Federal Reserve policy rates'
+    },
+    'MACRO_CREDIT_SPREADS': {
+        'source_key': 'credit_spreads',
+        'columns': {
+            'DATE': 'DATE',
+            'AAA_SPREAD': 'FLOAT',
+            'BBB_SPREAD': 'FLOAT',
+            'HIGH_YIELD_SPREAD': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Corporate credit spreads'
+    },
+
+    # Macroeconomic GDP Tables
+    'MACRO_GDP': {
+        'source_key': 'gdp',
+        'columns': {
+            'DATE': 'DATE',
+            'GDP_NOMINAL': 'FLOAT',
+            'GDP_REAL': 'FLOAT',
+            'GDP_GROWTH_QOQ': 'FLOAT',
+            'GDP_GROWTH_YOY': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'GDP headline data'
+    },
+    'MACRO_GDP_COMPONENTS': {
+        'source_key': 'gdp_components',
+        'columns': {
+            'DATE': 'DATE',
+            'CONSUMPTION': 'FLOAT',
+            'INVESTMENT': 'FLOAT',
+            'GOVERNMENT': 'FLOAT',
+            'NET_EXPORTS': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'GDP by expenditure component'
+    },
+
+    # Macroeconomic Employment Tables
+    'MACRO_EMPLOYMENT': {
+        'source_key': 'employment',
+        'columns': {
+            'DATE': 'DATE',
+            'NONFARM_PAYROLLS': 'INTEGER',
+            'PRIVATE_PAYROLLS': 'INTEGER',
+            'MANUFACTURING_EMPLOYMENT': 'INTEGER',
+            'EMPLOYED_LEVEL': 'INTEGER'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Employment levels and payrolls'
+    },
+    'MACRO_UNEMPLOYMENT': {
+        'source_key': 'unemployment',
+        'columns': {
+            'DATE': 'DATE',
+            'UNEMPLOYMENT_RATE_U3': 'FLOAT',
+            'UNEMPLOYMENT_RATE_U6': 'FLOAT',
+            'UNEMPLOYED_LEVEL': 'INTEGER'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Unemployment measures'
+    },
+    'MACRO_LABOR_FORCE': {
+        'source_key': 'labor_force',
+        'columns': {
+            'DATE': 'DATE',
+            'LABOR_FORCE_PARTICIPATION': 'FLOAT',
+            'EMPLOYMENT_POPULATION_RATIO': 'FLOAT',
+            'LABOR_FORCE_LEVEL': 'INTEGER'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Labor force participation metrics'
+    },
+    'MACRO_JOBLESS_CLAIMS': {
+        'source_key': 'jobless_claims',
+        'columns': {
+            'DATE': 'DATE',
+            'INITIAL_CLAIMS': 'INTEGER',
+            'CONTINUING_CLAIMS': 'INTEGER',
+            'INSURED_UNEMPLOYMENT_RATE': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Weekly jobless claims'
+    },
+    'MACRO_WAGES': {
+        'source_key': 'wages',
+        'columns': {
+            'DATE': 'DATE',
+            'AVG_HOURLY_EARNINGS': 'FLOAT',
+            'AVG_WEEKLY_EARNINGS': 'FLOAT',
+            'REAL_WEEKLY_EARNINGS': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Wage and earnings data'
+    },
+    'MACRO_JOLTS': {
+        'source_key': 'jolts',
+        'columns': {
+            'DATE': 'DATE',
+            'JOB_OPENINGS': 'INTEGER',
+            'HIRES': 'INTEGER',
+            'QUITS': 'INTEGER',
+            'SEPARATIONS': 'INTEGER'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Job Openings and Labor Turnover Survey'
+    },
+
+    # Macroeconomic Money Supply Tables
+    'MACRO_MONEY_SUPPLY': {
+        'source_key': 'money_supply',
+        'columns': {
+            'DATE': 'DATE',
+            'M1': 'FLOAT',
+            'M2': 'FLOAT',
+            'MONETARY_BASE': 'FLOAT',
+            'M1_YOY': 'FLOAT',
+            'M2_YOY': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Monetary aggregates'
+    },
+    'MACRO_FED_BALANCE_SHEET': {
+        'source_key': 'fed_balance_sheet',
+        'columns': {
+            'DATE': 'DATE',
+            'TOTAL_ASSETS': 'FLOAT',
+            'TREASURY_HOLDINGS': 'FLOAT',
+            'MBS_HOLDINGS': 'FLOAT',
+            'RESERVE_BALANCES': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Federal Reserve balance sheet'
+    },
+
+    # Macroeconomic Production Tables
+    'MACRO_INDUSTRIAL_PRODUCTION': {
+        'source_key': 'industrial_production',
+        'columns': {
+            'DATE': 'DATE',
+            'IP_TOTAL': 'FLOAT',
+            'IP_MANUFACTURING': 'FLOAT',
+            'IP_MINING': 'FLOAT',
+            'IP_UTILITIES': 'FLOAT',
+            'CAPACITY_UTILIZATION': 'FLOAT'
+        },
+        'primary_key': ['DATE'],
+        'description': 'Industrial production indices'
     }
 }
 

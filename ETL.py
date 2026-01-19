@@ -391,6 +391,220 @@ DATA_DICTIONARY = {
                 ]
             }
         }
+    },
+    'stock_market': {
+        'description': 'Stock market data for culture war companies',
+        'source': 'Yahoo Finance',
+        'url': 'https://finance.yahoo.com/',
+        'tables': {
+            'daily_prices': {
+                'description': 'Daily OHLCV stock prices',
+                'columns': [
+                    'ticker', 'date', 'open', 'high', 'low', 'close',
+                    'adj_close', 'volume'
+                ]
+            },
+            'returns': {
+                'description': 'Calculated returns by period',
+                'columns': [
+                    'ticker', 'date', 'daily_return', 'weekly_return',
+                    'monthly_return', 'ytd_return', 'cumulative_return'
+                ]
+            }
+        }
+    },
+    'vix_volatility': {
+        'description': 'CBOE Volatility Index (VIX) data',
+        'source': 'FRED',
+        'url': 'https://fred.stlouisfed.org/series/VIXCLS',
+        'tables': {
+            'daily': {
+                'description': 'Daily VIX values',
+                'columns': ['date', 'vix', 'vix_change', 'vix_pct_change']
+            },
+            'summary': {
+                'description': 'VIX summary statistics by period',
+                'columns': ['period', 'mean', 'std', 'min', 'max', 'median']
+            }
+        }
+    },
+    'fama_french_factors': {
+        'description': 'Fama-French factor model data',
+        'source': 'Kenneth French Data Library',
+        'url': 'https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html',
+        'tables': {
+            'ff3_daily': {
+                'description': 'Daily 3-Factor model data',
+                'columns': ['date', 'mkt_rf', 'smb', 'hml', 'rf']
+            },
+            'ff5_daily': {
+                'description': 'Daily 5-Factor model data',
+                'columns': ['date', 'mkt_rf', 'smb', 'hml', 'rmw', 'cma', 'rf']
+            },
+            'momentum': {
+                'description': 'Momentum factor data',
+                'columns': ['date', 'mom']
+            }
+        }
+    },
+    'form4_insider_trading': {
+        'description': 'SEC Form 4 insider trading filings',
+        'source': 'SEC EDGAR',
+        'url': 'https://www.sec.gov/cgi-bin/browse-edgar',
+        'tables': {
+            'transactions': {
+                'description': 'Individual insider transactions',
+                'columns': [
+                    'ticker', 'cik', 'filing_date', 'transaction_date',
+                    'insider_name', 'insider_title', 'transaction_type',
+                    'shares', 'price', 'value', 'shares_owned_after',
+                    'direct_indirect', 'form_type'
+                ]
+            },
+            'summary_by_ticker': {
+                'description': 'Insider trading summary by company',
+                'columns': [
+                    'ticker', 'total_transactions', 'total_buys', 'total_sells',
+                    'net_shares', 'net_value', 'unique_insiders'
+                ]
+            }
+        }
+    },
+    'macroeconomic_inflation': {
+        'description': 'Inflation and price index data',
+        'source': 'FRED',
+        'url': 'https://fred.stlouisfed.org/',
+        'tables': {
+            'cpi': {
+                'description': 'Consumer Price Index data',
+                'columns': ['date', 'cpi_all', 'cpi_core', 'cpi_yoy', 'cpi_mom']
+            },
+            'pce': {
+                'description': 'Personal Consumption Expenditures Price Index',
+                'columns': ['date', 'pce', 'pce_core', 'pce_yoy', 'pce_mom']
+            },
+            'ppi': {
+                'description': 'Producer Price Index',
+                'columns': ['date', 'ppi', 'ppi_yoy', 'ppi_mom']
+            },
+            'expectations': {
+                'description': 'Inflation expectations',
+                'columns': ['date', 'breakeven_5y', 'breakeven_10y', 'michigan_expected']
+            }
+        }
+    },
+    'macroeconomic_rates': {
+        'description': 'Interest rates and yields data',
+        'source': 'FRED',
+        'url': 'https://fred.stlouisfed.org/',
+        'tables': {
+            'treasury_yields': {
+                'description': 'Treasury yield curve data',
+                'columns': [
+                    'date', 'yield_1m', 'yield_3m', 'yield_6m', 'yield_1y',
+                    'yield_2y', 'yield_5y', 'yield_10y', 'yield_30y'
+                ]
+            },
+            'policy_rates': {
+                'description': 'Federal Reserve policy rates',
+                'columns': ['date', 'fed_funds', 'discount_rate', 'prime_rate', 'sofr']
+            },
+            'credit_spreads': {
+                'description': 'Corporate credit spreads',
+                'columns': ['date', 'aaa_spread', 'bbb_spread', 'high_yield_spread']
+            },
+            'yield_curve': {
+                'description': 'Yield curve metrics',
+                'columns': ['date', 'spread_10y_2y', 'spread_10y_3m', 'curve_inverted']
+            }
+        }
+    },
+    'macroeconomic_gdp': {
+        'description': 'Gross Domestic Product data',
+        'source': 'FRED',
+        'url': 'https://fred.stlouisfed.org/',
+        'tables': {
+            'gdp': {
+                'description': 'GDP headline data',
+                'columns': ['date', 'gdp_nominal', 'gdp_real', 'gdp_growth_qoq', 'gdp_growth_yoy']
+            },
+            'gdp_components': {
+                'description': 'GDP by expenditure component',
+                'columns': ['date', 'consumption', 'investment', 'government', 'net_exports']
+            },
+            'gdp_per_capita': {
+                'description': 'Per capita GDP measures',
+                'columns': ['date', 'gdp_per_capita_nominal', 'gdp_per_capita_real']
+            }
+        }
+    },
+    'macroeconomic_employment': {
+        'description': 'Employment and labor market data',
+        'source': 'FRED',
+        'url': 'https://fred.stlouisfed.org/',
+        'tables': {
+            'employment': {
+                'description': 'Employment levels and payrolls',
+                'columns': [
+                    'date', 'nonfarm_payrolls', 'private_payrolls',
+                    'manufacturing_employment', 'employed_level'
+                ]
+            },
+            'unemployment': {
+                'description': 'Unemployment measures',
+                'columns': ['date', 'unemployment_rate_u3', 'unemployment_rate_u6', 'unemployed_level']
+            },
+            'labor_force': {
+                'description': 'Labor force participation',
+                'columns': ['date', 'labor_force_participation', 'employment_population_ratio', 'labor_force_level']
+            },
+            'jobless_claims': {
+                'description': 'Weekly jobless claims',
+                'columns': ['date', 'initial_claims', 'continuing_claims', 'insured_unemployment_rate']
+            },
+            'wages': {
+                'description': 'Wage and earnings data',
+                'columns': ['date', 'avg_hourly_earnings', 'avg_weekly_earnings', 'real_weekly_earnings']
+            },
+            'jolts': {
+                'description': 'Job Openings and Labor Turnover Survey',
+                'columns': ['date', 'job_openings', 'hires', 'quits', 'separations']
+            }
+        }
+    },
+    'macroeconomic_money': {
+        'description': 'Money supply and Fed balance sheet data',
+        'source': 'FRED',
+        'url': 'https://fred.stlouisfed.org/',
+        'tables': {
+            'money_supply': {
+                'description': 'Monetary aggregates',
+                'columns': ['date', 'm1', 'm2', 'monetary_base', 'm1_yoy', 'm2_yoy']
+            },
+            'velocity': {
+                'description': 'Money velocity',
+                'columns': ['date', 'm1_velocity', 'm2_velocity']
+            },
+            'fed_balance_sheet': {
+                'description': 'Federal Reserve balance sheet',
+                'columns': ['date', 'total_assets', 'treasury_holdings', 'mbs_holdings', 'reserve_balances']
+            }
+        }
+    },
+    'macroeconomic_production': {
+        'description': 'Industrial production and capacity data',
+        'source': 'FRED',
+        'url': 'https://fred.stlouisfed.org/',
+        'tables': {
+            'industrial_production': {
+                'description': 'Industrial production indices',
+                'columns': ['date', 'ip_total', 'ip_manufacturing', 'ip_mining', 'ip_utilities']
+            },
+            'capacity': {
+                'description': 'Capacity utilization',
+                'columns': ['date', 'capacity_utilization', 'capacity_utilization_manufacturing']
+            }
+        }
     }
 }
 
