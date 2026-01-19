@@ -51,6 +51,14 @@ plotly>=5.15.0
 # For Dashboard
 streamlit>=1.29.0
 
+# For Predictive Modeling
+scikit-learn>=1.3.0
+statsmodels>=0.14.0
+
+# For Sentiment Analysis
+transformers>=4.35.0
+torch>=2.0.0
+
 # For testing
 # pytest>=7.4.0
 # pytest-cov>=4.1.0

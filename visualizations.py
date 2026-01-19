@@ -915,6 +915,283 @@ class Visualizer:
         return metrics
 
     # =========================================================================
+    # PREDICTIVE MODEL VISUALIZATIONS
+    # =========================================================================
+    def model_predictions_comparison(self, predictive_results: Dict[str, Any] = None) -> go.Figure:
+        """Create comparison of actual vs predicted results."""
+        if not predictive_results:
+            return self._empty_figure("No predictive model results available")
+
+        logistic = predictive_results.get('logistic_regression', {})
+        backfill = logistic.get('backfill', {})
+
+        if not backfill:
+            return self._empty_figure("No backfill predictions available")
+
+        years = backfill.get('all_years', [])
+        actual = backfill.get('actual', [])
+        predicted = backfill.get('predicted', [])
+        probability = backfill.get('probability', [])
+
+        fig = go.Figure()
+
+        # Actual results
+        fig.add_trace(go.Bar(
+            name='Actual (R Win)',
+            x=years,
+            y=actual,
+            marker_color=COLORS['republican'],
+            opacity=0.7,
+            offsetgroup=0
+        ))
+
+        # Predicted results
+        fig.add_trace(go.Bar(
+            name='Predicted (R Win)',
+            x=years,
+            y=predicted,
+            marker_color=COLORS['primary'],
+            opacity=0.7,
+            offsetgroup=1
+        ))
+
+        # Probability line
+        fig.add_trace(go.Scatter(
+            name='Win Probability',
+            x=years,
+            y=probability,
+            mode='lines+markers',
+            line=dict(color=COLORS['secondary'], width=3),
+            marker=dict(size=10),
+            yaxis='y2'
+        ))
+
+        fig.update_layout(
+            title='Model Predictions vs Actual Results',
+            xaxis_title='Election Year',
+            yaxis_title='Winner (1 = Republican)',
+            yaxis2=dict(
+                title='Win Probability',
+                overlaying='y',
+                side='right',
+                range=[0, 1]
+            ),
+            barmode='group',
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1),
+            height=400
+        )
+
+        return self._apply_dark_theme(fig)
+
+    def model_feature_importance(self, predictive_results: Dict[str, Any] = None) -> go.Figure:
+        """Create feature importance chart from logistic/ridge regression."""
+        if not predictive_results:
+            return self._empty_figure("No predictive model results available")
+
+        logistic = predictive_results.get('logistic_regression', {})
+        importance = logistic.get('feature_importance', {})
+
+        if not importance:
+            return self._empty_figure("No feature importance data available")
+
+        # Get model type for title
+        model_type = logistic.get('model_type', 'Logistic Regression')
+        is_ridge = 'Ridge' in model_type if model_type else False
+
+        # Sort by absolute value (handle None values)
+        sorted_features = sorted(importance.items(), key=lambda x: abs(x[1]) if x[1] is not None else 0, reverse=True)
+        features = [f[0] for f in sorted_features[:15]]
+        values = [f[1] if f[1] is not None else 0 for f in sorted_features[:15]]
+
+        colors = [COLORS['success'] if v is not None and v > 0 else COLORS['warning'] for v in values]
+
+        fig = go.Figure(go.Bar(
+            x=values,
+            y=[f.replace('_', ' ').title() for f in features],
+            orientation='h',
+            marker_color=colors
+        ))
+
+        fig.add_vline(x=0, line_color=COLORS['text'], line_width=1)
+
+        title = 'Feature Importance (Ridge Regression Coefficients)' if is_ridge else 'Feature Importance (Logistic Regression Coefficients)'
+        fig.update_layout(
+            title=title,
+            xaxis_title='Coefficient Value',
+            yaxis_title='Feature',
+            height=500,
+            yaxis=dict(autorange='reversed')
+        )
+
+        return self._apply_dark_theme(fig)
+
+    def model_accuracy_comparison(self, predictive_results: Dict[str, Any] = None) -> go.Figure:
+        """Create accuracy comparison between models."""
+        if not predictive_results:
+            return self._empty_figure("No predictive model results available")
+
+        ols = predictive_results.get('ols_regression', {})
+        logistic = predictive_results.get('logistic_regression', {})
+
+        # Determine model type (Logistic or Ridge fallback)
+        model_type = logistic.get('model_type', 'Logistic')
+        is_ridge = 'Ridge' in model_type if model_type else False
+        model_label = 'Ridge' if is_ridge else 'Logistic'
+
+        models = []
+        accuracies = []
+        colors = []
+
+        if ols.get('accuracy') is not None:
+            models.append('OLS Regression')
+            accuracies.append(float(ols['accuracy']))
+            colors.append(COLORS['primary'])
+
+        train_acc = logistic.get('training_metrics', {}).get('accuracy')
+        if train_acc is not None:
+            models.append(f'{model_label} (Train)')
+            accuracies.append(float(train_acc))
+            colors.append(COLORS['success'])
+
+        test_acc = logistic.get('testing_metrics', {}).get('accuracy')
+        if test_acc is not None:
+            models.append(f'{model_label} (Test)')
+            accuracies.append(float(test_acc))
+            colors.append(COLORS['secondary'])
+
+        backfill_acc = logistic.get('backfill', {}).get('accuracy')
+        if backfill_acc is not None:
+            models.append(f'{model_label} (Backfill)')
+            accuracies.append(float(backfill_acc))
+            colors.append(COLORS['warning'])
+
+        if not models:
+            return self._empty_figure("No accuracy data available")
+
+        fig = go.Figure(go.Bar(
+            x=models,
+            y=accuracies,
+            marker_color=colors,
+            text=[f"{a}%" for a in accuracies],
+            textposition='auto'
+        ))
+
+        fig.add_hline(y=50, line_dash="dash", line_color=COLORS['text'],
+                      annotation_text="Random Baseline (50%)")
+
+        fig.update_layout(
+            title='Model Accuracy Comparison',
+            xaxis_title='Model',
+            yaxis_title='Accuracy (%)',
+            yaxis=dict(range=[0, 105]),
+            height=400
+        )
+
+        return self._apply_dark_theme(fig)
+
+    def ols_coefficients_chart(self, predictive_results: Dict[str, Any] = None) -> go.Figure:
+        """Create OLS coefficients chart with confidence intervals."""
+        if not predictive_results:
+            return self._empty_figure("No predictive model results available")
+
+        ols = predictive_results.get('ols_regression', {})
+        coefficients = ols.get('coefficients', {})
+
+        if not coefficients:
+            return self._empty_figure("No OLS coefficients available")
+
+        # Filter out constant and sort by absolute value
+        coef_items = [(k, v) for k, v in coefficients.items() if k != 'const']
+        coef_items = sorted(coef_items, key=lambda x: abs(x[1]['coefficient']) if x[1]['coefficient'] is not None else 0, reverse=True)[:12]
+
+        features = [item[0].replace('_', ' ').title() for item in coef_items]
+        coefs = [item[1]['coefficient'] if item[1]['coefficient'] is not None else 0 for item in coef_items]
+        std_errors = [item[1]['std_error'] if item[1]['std_error'] is not None else 0 for item in coef_items]
+        p_values = [item[1]['p_value'] for item in coef_items]
+
+        # Color by significance (handle None p-values)
+        colors = [COLORS['success'] if p is not None and p < 0.1 else COLORS['neutral'] for p in p_values]
+
+        fig = go.Figure()
+
+        fig.add_trace(go.Bar(
+            x=coefs,
+            y=features,
+            orientation='h',
+            marker_color=colors,
+            error_x=dict(type='data', array=[1.96 * se if se is not None else 0 for se in std_errors], color=COLORS['text'])
+        ))
+
+        fig.add_vline(x=0, line_color=COLORS['text'], line_width=1)
+
+        fig.update_layout(
+            title='OLS Regression Coefficients<br><sup>Green = p < 0.10, Gray = not significant</sup>',
+            xaxis_title='Coefficient',
+            yaxis_title='Feature',
+            height=500,
+            yaxis=dict(autorange='reversed')
+        )
+
+        return self._apply_dark_theme(fig)
+
+    def prediction_probability_timeline(self, predictive_results: Dict[str, Any] = None) -> go.Figure:
+        """Create timeline of prediction probabilities."""
+        if not predictive_results:
+            return self._empty_figure("No predictive model results available")
+
+        logistic = predictive_results.get('logistic_regression', {})
+        backfill = logistic.get('backfill', {})
+
+        if not backfill:
+            return self._empty_figure("No backfill predictions available")
+
+        years = backfill.get('all_years', [])
+        probability = backfill.get('probability', [])
+        actual = backfill.get('actual', [])
+
+        fig = go.Figure()
+
+        # Probability area
+        fig.add_trace(go.Scatter(
+            x=years,
+            y=probability,
+            mode='lines+markers+text',
+            name='R Win Probability',
+            fill='tozeroy',
+            fillcolor='rgba(88, 166, 255, 0.3)',
+            line=dict(color=COLORS['primary'], width=3),
+            marker=dict(size=12),
+            text=[f"{p:.0%}" for p in probability],
+            textposition='top center'
+        ))
+
+        # Add markers for actual results
+        for i, (year, prob, act) in enumerate(zip(years, probability, actual)):
+            marker_color = COLORS['success'] if act == 1 else COLORS['warning']
+            fig.add_annotation(
+                x=year, y=prob,
+                text="R Won" if act == 1 else "D Won",
+                showarrow=True,
+                arrowhead=2,
+                arrowcolor=marker_color,
+                font=dict(color=marker_color, size=10),
+                yshift=30
+            )
+
+        fig.add_hline(y=0.5, line_dash="dash", line_color=COLORS['text'],
+                      annotation_text="50% Threshold")
+
+        fig.update_layout(
+            title='Republican Win Probability by Election Year',
+            xaxis_title='Election Year',
+            yaxis_title='Win Probability',
+            yaxis=dict(range=[0, 1.1], tickformat='.0%'),
+            height=400
+        )
+
+        return self._apply_dark_theme(fig)
+
+    # =========================================================================
     # HELPER METHODS
     # =========================================================================
     def _empty_figure(self, message: str) -> go.Figure:

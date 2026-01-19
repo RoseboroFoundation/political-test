@@ -2136,6 +2136,560 @@ class StatisticalModelManager:
 
 
 # =============================================================================
+# PREDICTIVE MODELING
+# =============================================================================
+class PredictiveModel:
+    """
+    Predictive models for Texas Governor race outcomes.
+    Includes OLS regression and Logistic regression with FinBERT sentiment.
+    """
+
+    def __init__(self, manager: StatisticalModelManager):
+        """
+        Initialize predictive model with data from StatisticalModelManager.
+
+        Args:
+            manager: Initialized StatisticalModelManager with computed statistics
+        """
+        self.manager = manager
+        self.model_data = None
+        self.ols_results = None
+        self.logistic_results = None
+        self.sentiment_cache = {}
+
+    def prepare_model_data(self) -> pd.DataFrame:
+        """
+        Prepare consolidated dataset for modeling.
+        Creates one row per election year with all features.
+
+        Returns:
+            DataFrame with features for each election year
+        """
+        logger.info("Preparing model data...")
+
+        election_years = [2010, 2014, 2018, 2022]
+        data_rows = []
+
+        for year in election_years:
+            row = {'election_year': year}
+
+            # Election results (dependent variable: R won = 1)
+            elections = self.manager.all_results.get('elections', {})
+            margin_by_year = elections.get('margin_statistics', {}).get('by_year', {})
+            year_data = margin_by_year.get(year, {})
+
+            row['winner_r'] = 1 if year_data.get('winner_party') == 'R' else 0
+            row['margin_pct'] = year_data.get('margin_pct', 0)
+
+            # Campaign finance
+            finance = self.manager.all_results.get('campaign_finance', {})
+            party_comparison = finance.get('party_comparison', {}).get('by_cycle', [])
+
+            for cycle in party_comparison:
+                if cycle.get('year') == year:
+                    row['r_raised'] = cycle.get('r_raised', 0)
+                    row['d_raised'] = cycle.get('d_raised', 0)
+                    row['r_fundraising_advantage'] = cycle.get('r_advantage', 0)
+                    row['r_fundraising_ratio'] = cycle.get('r_ratio', 1)
+                    break
+            else:
+                row['r_raised'] = 0
+                row['d_raised'] = 0
+                row['r_fundraising_advantage'] = 0
+                row['r_fundraising_ratio'] = 1
+
+            # Polling data
+            polling = self.manager.all_results.get('polling', {})
+            poll_margin_by_year = polling.get('margin_statistics', {}).get('by_year', {})
+            poll_data = poll_margin_by_year.get(year, {})
+
+            row['poll_margin_mean'] = poll_data.get('mean', 0)
+            row['poll_margin_std'] = poll_data.get('std', 0)
+
+            poll_accuracy = polling.get('polling_accuracy', {}).get('by_year', {})
+            accuracy_data = poll_accuracy.get(str(year), {})
+            row['historical_polling_error'] = accuracy_data.get('polling_error', 0)
+
+            # News coverage
+            news = self.manager.all_results.get('news', {})
+            news_by_year = news.get('coverage_summary', {}).get('by_year', {})
+            news_data = news_by_year.get(year, {})
+
+            row['news_articles'] = news_data.get('articles', 0)
+            row['news_sources'] = news_data.get('sources', 0)
+
+            # Culture war events (count events around election year)
+            culture_war = self.manager.all_results.get('culture_war', {})
+            yearly_events = culture_war.get('temporal_analysis', {}).get('yearly_trend', {})
+            row['culture_war_events'] = yearly_events.get(year, 0) + yearly_events.get(year - 1, 0)
+
+            # Market data - VIX around election time
+            market = self.manager.all_results.get('market', {})
+            vix_summary = market.get('vix_analysis', {}).get('summary', {})
+            row['vix_mean'] = vix_summary.get('mean', 20)
+            row['vix_std'] = vix_summary.get('std', 5)
+
+            # Macroeconomic data
+            macro = self.manager.all_results.get('macroeconomic', {})
+            inflation = macro.get('inflation_analysis', {})
+            row['inflation_current'] = inflation.get('current', 2.5) if inflation.get('current') != 'N/A' else 2.5
+
+            gdp = macro.get('gdp_analysis', {})
+            row['gdp_growth'] = gdp.get('current_growth', 2.0) if gdp.get('current_growth') else 2.0
+
+            employment = macro.get('employment_analysis', {})
+            row['unemployment_rate'] = employment.get('current_rate', 5.0) if employment.get('current_rate') else 5.0
+
+            data_rows.append(row)
+
+        self.model_data = pd.DataFrame(data_rows)
+        logger.info(f"Prepared model data with {len(self.model_data)} observations")
+
+        return self.model_data
+
+    def add_sentiment_analysis(self) -> pd.DataFrame:
+        """
+        Add FinBERT sentiment analysis for news coverage.
+
+        Returns:
+            Updated DataFrame with sentiment features
+        """
+        logger.info("Adding FinBERT sentiment analysis...")
+
+        try:
+            from transformers import AutoTokenizer, AutoModelForSequenceClassification
+            import torch
+
+            # Load FinBERT model
+            model_name = "ProsusAI/finbert"
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            model = AutoModelForSequenceClassification.from_pretrained(model_name)
+
+            # Load news articles
+            news_path = './data/news/texas_governor_news.csv'
+            if os.path.exists(news_path):
+                news_df = pd.read_csv(news_path)
+            else:
+                logger.warning("News CSV not found, using placeholder sentiment")
+                self.model_data['news_sentiment_positive'] = 0.33
+                self.model_data['news_sentiment_negative'] = 0.33
+                self.model_data['news_sentiment_neutral'] = 0.34
+                return self.model_data
+
+            # Get sentiment for each election year
+            for idx, row in self.model_data.iterrows():
+                year = row['election_year']
+
+                # Filter news for election year
+                if 'election_year' in news_df.columns:
+                    year_news = news_df[news_df['election_year'] == year]
+                else:
+                    year_news = news_df
+
+                if len(year_news) == 0:
+                    self.model_data.loc[idx, 'news_sentiment_positive'] = 0.33
+                    self.model_data.loc[idx, 'news_sentiment_negative'] = 0.33
+                    self.model_data.loc[idx, 'news_sentiment_neutral'] = 0.34
+                    continue
+
+                # Sample headlines/titles for sentiment
+                text_col = 'title' if 'title' in year_news.columns else 'headline'
+                if text_col not in year_news.columns:
+                    text_col = year_news.columns[0]
+
+                texts = year_news[text_col].dropna().head(50).tolist()
+
+                if not texts:
+                    self.model_data.loc[idx, 'news_sentiment_positive'] = 0.33
+                    self.model_data.loc[idx, 'news_sentiment_negative'] = 0.33
+                    self.model_data.loc[idx, 'news_sentiment_neutral'] = 0.34
+                    continue
+
+                # Get sentiment scores
+                sentiments = {'positive': 0, 'negative': 0, 'neutral': 0}
+                for text in texts:
+                    try:
+                        inputs = tokenizer(str(text)[:512], return_tensors="pt", truncation=True, padding=True)
+                        with torch.no_grad():
+                            outputs = model(**inputs)
+                        probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
+                        sentiments['positive'] += probs[0][0].item()
+                        sentiments['negative'] += probs[0][1].item()
+                        sentiments['neutral'] += probs[0][2].item()
+                    except:
+                        continue
+
+                total = len(texts)
+                if total > 0:
+                    self.model_data.loc[idx, 'news_sentiment_positive'] = sentiments['positive'] / total
+                    self.model_data.loc[idx, 'news_sentiment_negative'] = sentiments['negative'] / total
+                    self.model_data.loc[idx, 'news_sentiment_neutral'] = sentiments['neutral'] / total
+                else:
+                    self.model_data.loc[idx, 'news_sentiment_positive'] = 0.33
+                    self.model_data.loc[idx, 'news_sentiment_negative'] = 0.33
+                    self.model_data.loc[idx, 'news_sentiment_neutral'] = 0.34
+
+            logger.info("Sentiment analysis complete")
+
+        except ImportError as e:
+            logger.warning(f"FinBERT not available: {e}. Using placeholder sentiment.")
+            self.model_data['news_sentiment_positive'] = 0.33
+            self.model_data['news_sentiment_negative'] = 0.33
+            self.model_data['news_sentiment_neutral'] = 0.34
+        except Exception as e:
+            logger.warning(f"Sentiment analysis error: {e}. Using placeholder sentiment.")
+            self.model_data['news_sentiment_positive'] = 0.33
+            self.model_data['news_sentiment_negative'] = 0.33
+            self.model_data['news_sentiment_neutral'] = 0.34
+
+        return self.model_data
+
+    def run_ols_regression(self) -> Dict[str, Any]:
+        """
+        Run OLS regression to predict election winner.
+
+        Returns:
+            Dictionary with OLS results and statistics
+        """
+        logger.info("Running OLS regression...")
+
+        try:
+            import statsmodels.api as sm
+
+            if self.model_data is None:
+                self.prepare_model_data()
+
+            # Define features (exclude dependent variable and identifiers)
+            exclude_cols = ['election_year', 'winner_r']
+            feature_cols = [c for c in self.model_data.columns if c not in exclude_cols]
+
+            X = self.model_data[feature_cols].fillna(0)
+            y = self.model_data['winner_r']
+
+            # Add constant for OLS
+            X_const = sm.add_constant(X)
+
+            # Fit OLS model
+            model = sm.OLS(y, X_const)
+            results = model.fit()
+
+            self.ols_results = {
+                'model_type': 'OLS Regression',
+                'r_squared': round(results.rsquared, 4),
+                'adj_r_squared': round(results.rsquared_adj, 4),
+                'f_statistic': round(results.fvalue, 4) if not np.isnan(results.fvalue) else None,
+                'f_pvalue': round(results.f_pvalue, 4) if not np.isnan(results.f_pvalue) else None,
+                'aic': round(results.aic, 2),
+                'bic': round(results.bic, 2),
+                'n_observations': int(results.nobs),
+                'coefficients': {},
+                'predictions': results.fittedvalues.tolist(),
+                'residuals': results.resid.tolist()
+            }
+
+            # Extract coefficients
+            for i, col in enumerate(X_const.columns):
+                self.ols_results['coefficients'][col] = {
+                    'coefficient': round(float(results.params.iloc[i]), 4),
+                    'std_error': round(float(results.bse.iloc[i]), 4) if not np.isnan(results.bse.iloc[i]) else None,
+                    't_statistic': round(float(results.tvalues.iloc[i]), 4) if not np.isnan(results.tvalues.iloc[i]) else None,
+                    'p_value': round(float(results.pvalues.iloc[i]), 4) if not np.isnan(results.pvalues.iloc[i]) else None
+                }
+
+            # Calculate accuracy (predicted > 0.5 = R wins)
+            predictions = (results.fittedvalues > 0.5).astype(int)
+            accuracy = (predictions == y).mean()
+            self.ols_results['accuracy'] = round(accuracy * 100, 2)
+
+            logger.info(f"OLS R-squared: {self.ols_results['r_squared']}, Accuracy: {self.ols_results['accuracy']}%")
+
+            return self.ols_results
+
+        except ImportError:
+            logger.error("statsmodels not installed")
+            return {'error': 'statsmodels not installed'}
+        except Exception as e:
+            logger.error(f"OLS regression error: {e}")
+            return {'error': str(e)}
+
+    def run_logistic_regression(self, train_years: list = [2010, 2014], test_years: list = [2018, 2022]) -> Dict[str, Any]:
+        """
+        Run logistic regression with train/test split.
+        Falls back to margin prediction if all outcomes are the same class.
+
+        Args:
+            train_years: Years to use for training
+            test_years: Years to use for testing
+
+        Returns:
+            Dictionary with regression results
+        """
+        logger.info(f"Running logistic regression (train: {train_years}, test: {test_years})...")
+
+        try:
+            from sklearn.linear_model import LogisticRegression, Ridge
+            from sklearn.preprocessing import StandardScaler
+            from sklearn.metrics import accuracy_score, mean_squared_error, r2_score, mean_absolute_error
+
+            if self.model_data is None:
+                self.prepare_model_data()
+
+            # Add sentiment if not present
+            if 'news_sentiment_positive' not in self.model_data.columns:
+                self.add_sentiment_analysis()
+
+            # Define features
+            exclude_cols = ['election_year', 'winner_r', 'margin_pct']
+            feature_cols = [c for c in self.model_data.columns if c not in exclude_cols]
+
+            # Check if we have class variation
+            unique_classes = self.model_data['winner_r'].nunique()
+
+            if unique_classes < 2:
+                logger.warning("Only one class in target variable. Using Ridge regression on margin instead.")
+                return self._run_margin_regression(train_years, test_years, feature_cols)
+
+            # Split data
+            train_mask = self.model_data['election_year'].isin(train_years)
+            test_mask = self.model_data['election_year'].isin(test_years)
+
+            X_train = self.model_data.loc[train_mask, feature_cols].fillna(0)
+            y_train = self.model_data.loc[train_mask, 'winner_r']
+            X_test = self.model_data.loc[test_mask, feature_cols].fillna(0)
+            y_test = self.model_data.loc[test_mask, 'winner_r']
+
+            # Scale features
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_test_scaled = scaler.transform(X_test)
+
+            # Fit logistic regression
+            model = LogisticRegression(random_state=42, max_iter=1000)
+            model.fit(X_train_scaled, y_train)
+
+            # Predictions
+            train_pred = model.predict(X_train_scaled)
+            test_pred = model.predict(X_test_scaled)
+            train_proba = model.predict_proba(X_train_scaled)[:, 1]
+            test_proba = model.predict_proba(X_test_scaled)[:, 1]
+
+            # Results
+            self.logistic_results = {
+                'model_type': 'Logistic Regression',
+                'train_years': train_years,
+                'test_years': test_years,
+                'n_train': len(y_train),
+                'n_test': len(y_test),
+                'feature_importance': {},
+                'training_metrics': {
+                    'accuracy': round(accuracy_score(y_train, train_pred) * 100, 2)
+                },
+                'testing_metrics': {
+                    'accuracy': round(accuracy_score(y_test, test_pred) * 100, 2)
+                },
+                'predictions': {
+                    'train': {
+                        'years': train_years,
+                        'actual': y_train.tolist(),
+                        'predicted': train_pred.tolist(),
+                        'probability': train_proba.tolist()
+                    },
+                    'test': {
+                        'years': test_years,
+                        'actual': y_test.tolist(),
+                        'predicted': test_pred.tolist(),
+                        'probability': test_proba.tolist()
+                    }
+                }
+            }
+
+            # Feature importance (coefficients)
+            for i, col in enumerate(feature_cols):
+                self.logistic_results['feature_importance'][col] = round(model.coef_[0][i], 4)
+
+            # Backfill predictions
+            X_all = self.model_data[feature_cols].fillna(0)
+            X_all_scaled = scaler.transform(X_all)
+            all_pred = model.predict(X_all_scaled)
+            all_proba = model.predict_proba(X_all_scaled)[:, 1]
+
+            self.logistic_results['backfill'] = {
+                'all_years': self.model_data['election_year'].tolist(),
+                'actual': self.model_data['winner_r'].tolist(),
+                'predicted': all_pred.tolist(),
+                'probability': all_proba.tolist(),
+                'accuracy': round(accuracy_score(self.model_data['winner_r'], all_pred) * 100, 2)
+            }
+
+            logger.info(f"Logistic regression - Train accuracy: {self.logistic_results['training_metrics']['accuracy']}%, "
+                       f"Test accuracy: {self.logistic_results['testing_metrics']['accuracy']}%")
+
+            return self.logistic_results
+
+        except ImportError as e:
+            logger.error(f"sklearn not installed: {e}")
+            return {'error': 'sklearn not installed'}
+        except Exception as e:
+            logger.error(f"Logistic regression error: {e}")
+            # Try margin regression as fallback
+            try:
+                return self._run_margin_regression(train_years, test_years, feature_cols)
+            except:
+                return {'error': str(e)}
+
+    def _run_margin_regression(self, train_years: list, test_years: list, feature_cols: list) -> Dict[str, Any]:
+        """
+        Run Ridge regression to predict victory margin.
+        Used when classification isn't possible (single class).
+        """
+        logger.info("Running margin prediction regression...")
+
+        from sklearn.linear_model import Ridge
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+
+        # Split data
+        train_mask = self.model_data['election_year'].isin(train_years)
+        test_mask = self.model_data['election_year'].isin(test_years)
+
+        X_train = self.model_data.loc[train_mask, feature_cols].fillna(0)
+        y_train = self.model_data.loc[train_mask, 'margin_pct']
+        X_test = self.model_data.loc[test_mask, feature_cols].fillna(0)
+        y_test = self.model_data.loc[test_mask, 'margin_pct']
+
+        # Scale features
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+
+        # Fit Ridge regression
+        model = Ridge(alpha=1.0, random_state=42)
+        model.fit(X_train_scaled, y_train)
+
+        # Predictions
+        train_pred = model.predict(X_train_scaled)
+        test_pred = model.predict(X_test_scaled)
+
+        # Convert margin to win probability (margin > 0 = R wins)
+        train_winner_pred = (train_pred > 0).astype(int)
+        test_winner_pred = (test_pred > 0).astype(int)
+
+        # All predictions
+        X_all = self.model_data[feature_cols].fillna(0)
+        X_all_scaled = scaler.transform(X_all)
+        all_margin_pred = model.predict(X_all_scaled)
+        all_winner_pred = (all_margin_pred > 0).astype(int)
+
+        # Calculate win probability as sigmoid of margin
+        def margin_to_prob(margin):
+            return 1 / (1 + np.exp(-margin / 5))
+
+        self.logistic_results = {
+            'model_type': 'Ridge Regression (Margin Prediction)',
+            'note': 'All elections won by same party - predicting margin instead of winner',
+            'train_years': train_years,
+            'test_years': test_years,
+            'n_train': len(y_train),
+            'n_test': len(y_test),
+            'feature_importance': {},
+            'training_metrics': {
+                'r2_score': round(r2_score(y_train, train_pred), 4),
+                'mae': round(mean_absolute_error(y_train, train_pred), 2),
+                'rmse': round(np.sqrt(mean_squared_error(y_train, train_pred)), 2),
+                'accuracy': round((train_winner_pred == self.model_data.loc[train_mask, 'winner_r']).mean() * 100, 2)
+            },
+            'testing_metrics': {
+                'r2_score': round(r2_score(y_test, test_pred), 4),
+                'mae': round(mean_absolute_error(y_test, test_pred), 2),
+                'rmse': round(np.sqrt(mean_squared_error(y_test, test_pred)), 2),
+                'accuracy': round((test_winner_pred == self.model_data.loc[test_mask, 'winner_r']).mean() * 100, 2)
+            },
+            'predictions': {
+                'train': {
+                    'years': train_years,
+                    'actual_margin': y_train.tolist(),
+                    'predicted_margin': train_pred.tolist(),
+                    'actual': self.model_data.loc[train_mask, 'winner_r'].tolist(),
+                    'predicted': train_winner_pred.tolist(),
+                    'probability': [margin_to_prob(m) for m in train_pred]
+                },
+                'test': {
+                    'years': test_years,
+                    'actual_margin': y_test.tolist(),
+                    'predicted_margin': test_pred.tolist(),
+                    'actual': self.model_data.loc[test_mask, 'winner_r'].tolist(),
+                    'predicted': test_winner_pred.tolist(),
+                    'probability': [margin_to_prob(m) for m in test_pred]
+                }
+            },
+            'backfill': {
+                'all_years': self.model_data['election_year'].tolist(),
+                'actual': self.model_data['winner_r'].tolist(),
+                'actual_margin': self.model_data['margin_pct'].tolist(),
+                'predicted': all_winner_pred.tolist(),
+                'predicted_margin': all_margin_pred.tolist(),
+                'probability': [margin_to_prob(m) for m in all_margin_pred],
+                'accuracy': round((all_winner_pred == self.model_data['winner_r']).mean() * 100, 2)
+            }
+        }
+
+        # Feature importance
+        for i, col in enumerate(feature_cols):
+            self.logistic_results['feature_importance'][col] = round(model.coef_[i], 4)
+
+        logger.info(f"Margin regression - Train R2: {self.logistic_results['training_metrics']['r2_score']}, "
+                   f"Test MAE: {self.logistic_results['testing_metrics']['mae']}%")
+
+        return self.logistic_results
+
+    def run_all_models(self) -> Dict[str, Any]:
+        """
+        Run all predictive models.
+
+        Returns:
+            Dictionary with all model results
+        """
+        logger.info("=" * 60)
+        logger.info("RUNNING PREDICTIVE MODELS")
+        logger.info("=" * 60)
+
+        self.prepare_model_data()
+        self.add_sentiment_analysis()
+
+        results = {
+            'ols_regression': self.run_ols_regression(),
+            'logistic_regression': self.run_logistic_regression(),
+            'model_data': self.model_data.to_dict('records') if self.model_data is not None else None
+        }
+
+        logger.info("=" * 60)
+        logger.info("PREDICTIVE MODELS COMPLETE")
+        logger.info("=" * 60)
+
+        return results
+
+    def get_summary(self) -> Dict[str, Any]:
+        """Get summary of model results for display."""
+        summary = {}
+
+        if self.ols_results:
+            summary['ols'] = {
+                'r_squared': self.ols_results.get('r_squared'),
+                'accuracy': self.ols_results.get('accuracy'),
+                'n_observations': self.ols_results.get('n_observations')
+            }
+
+        if self.logistic_results:
+            summary['logistic'] = {
+                'train_accuracy': self.logistic_results.get('training_metrics', {}).get('accuracy'),
+                'test_accuracy': self.logistic_results.get('testing_metrics', {}).get('accuracy'),
+                'backfill_accuracy': self.logistic_results.get('backfill', {}).get('accuracy')
+            }
+
+        return summary
+
+
+# =============================================================================
 # MAIN
 # =============================================================================
 def main():
