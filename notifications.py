@@ -6,20 +6,16 @@ Sends alerts when significant changes are detected.
 
 import os
 import json
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
 load_dotenv()
 
-# Configuration
-SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-SMTP_PORT = int(os.getenv('SMTP_PORT', 587))
-SMTP_USER = os.getenv('SMTP_USER', '')
-SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', '')
+# Pushover Configuration
+PUSHOVER_USER_KEY = os.getenv('PUSHOVER_USER_KEY', '')
+PUSHOVER_APP_TOKEN = os.getenv('PUSHOVER_APP_TOKEN', '')
 NOTIFICATION_EMAIL = os.getenv('NOTIFICATION_EMAIL', '')
 
 DATA_DIR = Path(__file__).parent / 'data'
@@ -150,66 +146,64 @@ def detect_changes(previous, current):
     return changes
 
 
-def send_email_notification(changes, current_state):
-    """Send email notification about detected changes."""
-    if not SMTP_USER or not NOTIFICATION_EMAIL:
-        print("Email not configured - skipping notification")
+def send_pushover_notification(changes, current_state):
+    """Send Pushover notification about detected changes."""
+    if not PUSHOVER_USER_KEY or not PUSHOVER_APP_TOKEN:
+        print("Pushover not configured - skipping notification")
         return False
 
-    # Build email content
-    subject = f"TX Governor Race Alert - {len(changes)} Change(s) Detected"
-
     high_severity = [c for c in changes if c.get('severity') == 'high']
-    if high_severity:
-        subject = f"[URGENT] TX Governor Race - {len(high_severity)} Critical Change(s)"
+    is_urgent = len(high_severity) > 0
 
-    body_lines = [
-        "TEXAS GOVERNOR RACE - CHANGE NOTIFICATION",
-        "=" * 50,
-        f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        "",
-        "CHANGES DETECTED:",
-        "-" * 30,
-    ]
+    # Build notification title
+    title = f"{'URGENT: ' if is_urgent else ''}TX Governor Race Alert"
+
+    # Build message body
+    lines = [f"{len(changes)} change(s) detected:\n"]
 
     for change in changes:
-        severity_marker = "!!!" if change['severity'] == 'high' else "!" if change['severity'] == 'medium' else ""
-        body_lines.append(f"{severity_marker} [{change['type']}] {change['message']}")
+        severity_marker = "!!!" if change['severity'] == 'high' else "!" if change['severity'] == 'medium' else "-"
+        lines.append(f"{severity_marker} {change['type']}: {change['message']}")
 
-    body_lines.extend([
-        "",
-        "CURRENT STATE:",
-        "-" * 30,
-        f"Predicted Winner: Greg Abbott (R)",
-        f"Predicted Margin: R+{current_state.get('prediction', {}).get('margin_low', 12)}-{current_state.get('prediction', {}).get('margin_high', 18)}%",
-        f"Win Probability: {current_state.get('prediction', {}).get('win_probability', 99)}%+",
-        f"Current Polling: Abbott {current_state.get('polling', {}).get('abbott', 50)}% - Hinojosa {current_state.get('polling', {}).get('hinojosa', 42)}%",
-        "",
-        "View dashboard: http://207.254.38.26:8502",
-        "",
-        "-" * 50,
-        "This is an automated notification from the TX Governor Race Analysis system."
-    ])
+    lines.append("")
 
-    body = "\n".join(body_lines)
+    # Current state
+    pred = current_state.get('prediction', {})
+    poll = current_state.get('polling', {})
+
+    lines.append(f"Forecast: Abbott (R) wins R+{pred.get('margin_low', 12)}-{pred.get('margin_high', 18)}%")
+    lines.append(f"Polling: Abbott {poll.get('abbott', 50)}% - Hinojosa {poll.get('hinojosa', 42)}%")
+
+    message = "\n".join(lines)
+
+    # Set priority: 1 for high priority (urgent), 0 for normal
+    priority = 1 if is_urgent else 0
 
     try:
-        msg = MIMEMultipart()
-        msg['From'] = SMTP_USER
-        msg['To'] = NOTIFICATION_EMAIL
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
+        response = requests.post(
+            "https://api.pushover.net/1/messages.json",
+            data={
+                "token": PUSHOVER_APP_TOKEN,
+                "user": PUSHOVER_USER_KEY,
+                "title": title,
+                "message": message,
+                "priority": priority,
+                "url": "http://207.254.38.26:8502",
+                "url_title": "View Dashboard"
+            },
+            timeout=30
+        )
 
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_USER, SMTP_PASSWORD)
-            server.send_message(msg)
-
-        print(f"Email notification sent to {NOTIFICATION_EMAIL}")
-        return True
+        result = response.json()
+        if result.get('status') == 1:
+            print(f"Pushover notification sent successfully")
+            return True
+        else:
+            print(f"Pushover API error: {result.get('errors', 'Unknown error')}")
+            return False
 
     except Exception as e:
-        print(f"Failed to send email: {e}")
+        print(f"Failed to send Pushover notification: {e}")
         return False
 
 
@@ -251,8 +245,8 @@ def check_and_notify(current_state):
         # Log all notifications
         save_notification_log(changes, current_state)
 
-        # Send email for any changes
-        send_email_notification(changes, current_state)
+        # Send Pushover notification for any changes
+        send_pushover_notification(changes, current_state)
 
     else:
         print("No changes detected")
