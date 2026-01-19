@@ -32,7 +32,7 @@ from ETL import ETLPipeline, DATA_DICTIONARY
 # =============================================================================
 st.set_page_config(
     page_title="Texas Governor Race Analysis",
-    page_icon="🗳️",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -434,12 +434,12 @@ def render_sidebar():
         st.markdown("---")
 
         # Executive Report Download
-        st.markdown("### 📄 Executive Report")
+        st.markdown("### Executive Report")
         if st.button("Generate PDF Report", use_container_width=True):
             with st.spinner("Generating PDF report..."):
                 pdf_bytes = generate_executive_report_pdf(manager)
                 st.download_button(
-                    label="📥 Download PDF",
+                    label="Download PDF",
                     data=pdf_bytes,
                     file_name=f"TX_Governor_Executive_Report_{datetime.now().strftime('%Y%m%d')}.pdf",
                     mime="application/pdf",
@@ -1143,7 +1143,7 @@ def generate_executive_report_pdf(manager):
 # =============================================================================
 def render_client_tab(manager, viz):
     """Render the Client Race Results tab."""
-    st.markdown('<div class="tab-header">📊 Texas Governor Race Results</div>',
+    st.markdown('<div class="tab-header">Texas Governor Race Results</div>',
                 unsafe_allow_html=True)
 
     st.markdown("""
@@ -1157,7 +1157,7 @@ def render_client_tab(manager, viz):
     # ==========================================================================
     # 2026 RACE PREVIEW
     # ==========================================================================
-    st.markdown('<div class="section-header">🔮 2026 Race Preview</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">2026 Race Preview</div>', unsafe_allow_html=True)
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -1195,7 +1195,7 @@ def render_client_tab(manager, viz):
     # ==========================================================================
     # 2026 FULL PREDICTION
     # ==========================================================================
-    st.markdown('<div class="section-header">🔮 2026 Election Predictions</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">2026 Election Predictions</div>', unsafe_allow_html=True)
 
     # Primary Predictions
     st.markdown("#### Primary Elections (March 3, 2026)")
@@ -1360,7 +1360,7 @@ def render_client_tab(manager, viz):
             'Winner': 'Greg Abbott*',
             'Party': 'R',
             'Victory Margin': 'R+12-18%*',
-            'Status': '🔮 Predicted'
+            'Status': 'Predicted'
         })
         results_df = pd.DataFrame(results_list)
         st.dataframe(results_df, use_container_width=True, hide_index=True)
@@ -1422,7 +1422,7 @@ def render_client_tab(manager, viz):
 # =============================================================================
 def render_model_tab(manager, viz):
     """Render the Model Test Results tab."""
-    st.markdown('<div class="tab-header">🔬 Statistical Model Results</div>',
+    st.markdown('<div class="tab-header">Statistical Model Results</div>',
                 unsafe_allow_html=True)
 
     st.markdown("""
@@ -1475,7 +1475,7 @@ def render_model_tab(manager, viz):
     st.markdown('<div class="section-header">Detailed Statistics</div>', unsafe_allow_html=True)
 
     # Create expandable sections for each statistics category
-    with st.expander("📊 Election Statistics", expanded=True):
+    with st.expander("Election Statistics", expanded=True):
         elections = manager.all_results.get('elections', {})
 
         col1, col2 = st.columns(2)
@@ -1491,7 +1491,7 @@ def render_model_tab(manager, viz):
         trends = elections.get('historical_trends', {})
         display_stats_table(trends, "Historical Trends")
 
-    with st.expander("💰 Campaign Finance Statistics"):
+    with st.expander("Campaign Finance Statistics"):
         finance = manager.all_results.get('campaign_finance', {})
 
         col1, col2 = st.columns(2)
@@ -1508,7 +1508,7 @@ def render_model_tab(manager, viz):
         fig = viz.expenditure_categories()
         st.plotly_chart(fig, use_container_width=True)
 
-    with st.expander("📈 Polling Statistics"):
+    with st.expander("Polling Statistics"):
         polling = manager.all_results.get('polling', {})
 
         col1, col2 = st.columns(2)
@@ -1528,7 +1528,7 @@ def render_model_tab(manager, viz):
             if trend_stats.get('volatility_summary'):
                 display_stats_table(trend_stats['volatility_summary'], "Trend Analysis")
 
-    with st.expander("📰 News Coverage Statistics"):
+    with st.expander("News Coverage Statistics"):
         news = manager.all_results.get('news', {})
 
         col1, col2 = st.columns(2)
@@ -1567,7 +1567,7 @@ def render_model_tab(manager, viz):
         fig = viz.culture_war_by_industry()
         st.plotly_chart(fig, use_container_width=True)
 
-    with st.expander("📉 Market Statistics"):
+    with st.expander("Market Statistics"):
         market = manager.all_results.get('market', {})
 
         col1, col2 = st.columns(2)
@@ -1587,7 +1587,7 @@ def render_model_tab(manager, viz):
             fig = viz.vix_distribution()
             st.plotly_chart(fig, use_container_width=True)
 
-    with st.expander("🏛️ Macroeconomic Statistics"):
+    with st.expander("Macroeconomic Statistics"):
         macro = manager.all_results.get('macroeconomic', {})
 
         col1, col2 = st.columns(2)
@@ -1667,7 +1667,7 @@ def render_model_tab(manager, viz):
             st.plotly_chart(fig, use_container_width=True)
 
         # OLS Regression Results
-        with st.expander("📈 OLS Regression Results", expanded=True):
+        with st.expander("OLS Regression Results", expanded=True):
             ols_results = predictive_results.get('ols_regression', {})
 
             if 'error' not in ols_results:
@@ -1691,9 +1691,7 @@ def render_model_tab(manager, viz):
         logistic_results = predictive_results.get('logistic_regression', {})
         model_type = logistic_results.get('model_type', 'Logistic Regression')
         is_ridge = 'Ridge' in model_type if model_type else False
-        model_icon = "📊" if is_ridge else "🎯"
-
-        with st.expander(f"{model_icon} {model_type} Results", expanded=True):
+        with st.expander(f"{model_type} Results", expanded=True):
             if 'error' not in logistic_results:
                 # Show note if using Ridge fallback
                 if is_ridge:
@@ -1753,7 +1751,7 @@ def render_model_tab(manager, viz):
     # 2026 PREDICTION REFERENCE
     # =========================================================================
     st.markdown("---")
-    st.markdown("## 🔮 2026 Prediction")
+    st.markdown("## 2026 Prediction")
     st.info("**See the Client Race Results tab** for the full 2026 Texas Governor race prediction, including primary and general election forecasts.")
 
 
@@ -1764,7 +1762,7 @@ def render_model_tab(manager, viz):
 # =============================================================================
 def render_academic_tab(manager):
     """Render the Academic tab with raw data and code."""
-    st.markdown('<div class="tab-header">🎓 Academic Resources</div>',
+    st.markdown('<div class="tab-header">Academic Resources</div>',
                 unsafe_allow_html=True)
 
     st.markdown("""
@@ -1776,7 +1774,7 @@ def render_academic_tab(manager):
     """, unsafe_allow_html=True)
 
     # Sub-tabs within Academic
-    academic_tabs = st.tabs(["📁 Raw Data", "🔮 2026 Data", "📖 Methodology", "💻 Code", "📋 Data Dictionary"])
+    academic_tabs = st.tabs(["Raw Data", "2026 Data", "Methodology", "Code", "Data Dictionary"])
 
     # RAW DATA TAB
     with academic_tabs[0]:
@@ -1821,7 +1819,7 @@ def render_academic_tab(manager):
                 # Download button
                 csv = df.to_csv(index=False)
                 st.download_button(
-                    label="📥 Download CSV",
+                    label="Download CSV",
                     data=csv,
                     file_name=f"{dataset_name}.csv",
                     mime="text/csv"
@@ -1922,7 +1920,7 @@ def render_academic_tab(manager):
         }
 
         st.download_button(
-            label="📥 Download 2026 Data (JSON)",
+            label="Download 2026 Data (JSON)",
             data=json.dumps(data_2026_export, indent=2),
             file_name="texas_governor_2026_data.json",
             mime="application/json"
@@ -2047,7 +2045,7 @@ ETL process: Extract -> Transform -> Load (Snowflake/CSV)
         """
 
         st.download_button(
-            label="📥 Download Methodology (Markdown)",
+            label="Download Methodology (Markdown)",
             data=methodology_text,
             file_name="methodology.md",
             mime="text/markdown"
@@ -2254,7 +2252,7 @@ print(f"Win probability: {win_prob:.1%}")
 
         results_json = json.dumps(manager.all_results, indent=2, default=str)
         st.download_button(
-            label="📥 Download Results (JSON)",
+            label="Download Results (JSON)",
             data=results_json,
             file_name="analysis_results.json",
             mime="application/json"
@@ -2271,7 +2269,7 @@ print(f"Win probability: {win_prob:.1%}")
 
         # Display DATA_DICTIONARY from ETL
         for category, info in DATA_DICTIONARY.items():
-            with st.expander(f"📊 {category.replace('_', ' ').title()}", expanded=False):
+            with st.expander(f"{category.replace('_', ' ').title()}", expanded=False):
                 st.markdown(f"**Description:** {info.get('description', 'N/A')}")
                 st.markdown(f"**Source:** {info.get('source', 'N/A')}")
 
@@ -2300,7 +2298,7 @@ print(f"Win probability: {win_prob:.1%}")
         # Export data dictionary
         dict_json = json.dumps(DATA_DICTIONARY, indent=2)
         st.download_button(
-            label="📥 Download Data Dictionary (JSON)",
+            label="Download Data Dictionary (JSON)",
             data=dict_json,
             file_name="data_dictionary.json",
             mime="application/json"
@@ -2316,7 +2314,7 @@ def main():
     render_sidebar()
 
     # Main header
-    st.markdown('<div class="main-header">🗳️ Texas Governor Race Analysis</div>',
+    st.markdown('<div class="main-header">Texas Governor Race Analysis</div>',
                 unsafe_allow_html=True)
 
     # Load data with spinner
@@ -2335,9 +2333,9 @@ def main():
 
     # Create tabs
     tab1, tab2, tab3 = st.tabs([
-        "📊 Client Race Results",
-        "🔬 Model Test Results",
-        "🎓 Academic"
+        "Client Race Results",
+        "Model Test Results",
+        "Academic"
     ])
 
     with tab1:
