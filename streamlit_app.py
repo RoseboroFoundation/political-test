@@ -344,7 +344,7 @@ def render_sidebar():
         st.markdown("### Data Sources")
         st.markdown("""
         - Texas Secretary of State
-        - FEC Campaign Finance
+        - Campaign Finance Reports
         - FiveThirtyEight Polls
         - Guardian/NYT News APIs
         - Yahoo Finance
@@ -1120,7 +1120,7 @@ def generate_executive_report_pdf(manager):
         <p>
             <strong>TEXAS GOVERNOR RACE ANALYSIS — EXECUTIVE REPORT</strong><br>
             Generated: {report_date}<br><br>
-            Data Sources: Texas Secretary of State, FEC, Texas Ethics Commission, FiveThirtyEight,
+            Data Sources: Texas Secretary of State, Campaign Finance Reports, Texas Ethics Commission, FiveThirtyEight,
             Federal Reserve (FRED), Yahoo Finance, Guardian API, New York Times API<br><br>
             <em>This report is provided for informational purposes only. Predictions are based on
             historical data and current conditions; actual election results may vary. Past performance
@@ -1954,7 +1954,7 @@ def render_academic_tab(manager):
 
         **Primary Sources:**
         1. **Election Data**: Texas Secretary of State official results
-        2. **Campaign Finance**: Federal Election Commission (FEC) and Texas Ethics Commission
+        2. **Campaign Finance**: Campaign Finance Reports and Texas Ethics Commission
         3. **Polling Data**: FiveThirtyEight aggregated polls with pollster ratings
         4. **News Coverage**: Guardian API and New York Times API
         5. **Market Data**: Yahoo Finance (VIX, stock prices), Kenneth French Data Library (Fama-French factors)
@@ -2032,7 +2032,7 @@ Multi-source data integration approach analyzing Texas Governor races (2010-2024
 
 ## Data Sources
 1. Texas Secretary of State - Election Results
-2. FEC/Texas Ethics Commission - Campaign Finance
+2. Campaign Finance Reports - Campaign Finance
 3. FiveThirtyEight - Polling Data
 4. Guardian/NYT APIs - News Coverage
 5. Yahoo Finance/FRED - Market & Economic Data
@@ -2353,7 +2353,7 @@ def main():
     st.markdown("""
     <div class="footer">
         <p>Texas Governor Race Analysis Dashboard | Roseboro Foundation</p>
-        <p>Data Sources: Texas SoS, FEC, FiveThirtyEight, Guardian, NYT, Yahoo Finance, FRED</p>
+        <p>Data Sources: Texas SoS, Campaign Finance Reports, FiveThirtyEight, Guardian, NYT, Yahoo Finance, FRED</p>
     </div>
     """, unsafe_allow_html=True)
 
