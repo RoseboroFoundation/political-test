@@ -972,11 +972,20 @@ class ExampleStatistics(DescriptiveStatistics):
                         st.markdown(f"- **{table_name}**: {table_info.get('description', 'N/A')}")
 
                         if 'columns' in table_info:
-                            cols_df = pd.DataFrame([
-                                {'Column': col, 'Type': details.get('type', 'N/A'),
-                                 'Description': details.get('description', 'N/A')}
-                                for col, details in table_info['columns'].items()
-                            ])
+                            columns = table_info['columns']
+                            # Handle both list and dict formats
+                            if isinstance(columns, list):
+                                cols_df = pd.DataFrame([
+                                    {'Column': col} for col in columns
+                                ])
+                            elif isinstance(columns, dict):
+                                cols_df = pd.DataFrame([
+                                    {'Column': col, 'Type': details.get('type', 'N/A'),
+                                     'Description': details.get('description', 'N/A')}
+                                    for col, details in columns.items()
+                                ])
+                            else:
+                                continue
                             st.dataframe(cols_df, use_container_width=True, hide_index=True)
 
         # Export data dictionary

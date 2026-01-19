@@ -222,7 +222,7 @@ class Visualizer:
             marker_color=COLORS['democrat']
         ))
 
-        fig.add_hline(y=50, line_dash="dash", line_color="black",
+        fig.add_hline(y=50, line_dash="dash", line_color=COLORS['text'],
                       annotation_text="50% Threshold")
 
         fig.update_layout(
@@ -431,7 +431,7 @@ class Visualizer:
             textposition='auto'
         ))
 
-        fig.add_hline(y=0, line_color="black", line_width=2)
+        fig.add_hline(y=0, line_color=COLORS['text'], line_width=2)
 
         fig.update_layout(
             title='Polling Error by Election Year<br><sup>Positive = Underestimated Republican, Negative = Overestimated Republican</sup>',
@@ -693,7 +693,7 @@ class Visualizer:
                     {'range': [40, 80], 'color': 'red'}
                 ],
                 'threshold': {
-                    'line': {'color': "black", 'width': 4},
+                    'line': {'color': COLORS['text'], 'width': 4},
                     'thickness': 0.75,
                     'value': summary.get('mean', 20)
                 }
