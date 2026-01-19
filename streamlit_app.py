@@ -474,7 +474,37 @@ def render_sidebar():
                     st.metric("VIX", econ['vix'].get('value', 'N/A'))
 
                 with st.expander("View Full Briefing"):
-                    st.json(briefing)
+                    # Show plain text briefing
+                    text_file = Path(__file__).parent / 'briefings' / f"briefing_{briefing.get('date', 'latest')}.txt"
+                    if text_file.exists():
+                        with open(text_file, 'r') as f:
+                            st.code(f.read(), language=None)
+                    else:
+                        # Format as plain text from JSON
+                        lines = []
+                        lines.append(f"Date: {briefing.get('date', 'N/A')}")
+                        lines.append(f"Generated: {briefing.get('generated_at', 'N/A')}")
+                        lines.append("")
+                        lines.append("FORECAST:")
+                        fc = briefing.get('current_forecast', {})
+                        lines.append(f"  Winner: {fc.get('predicted_winner', 'N/A')}")
+                        lines.append(f"  Margin: {fc.get('predicted_margin', 'N/A')}")
+                        lines.append(f"  Probability: {fc.get('win_probability', 'N/A')}")
+                        lines.append("")
+                        lines.append("POLLING:")
+                        poll = briefing.get('polling_update', {})
+                        lines.append(f"  {poll.get('message', 'No update')}")
+                        avg = poll.get('current_average', {})
+                        if avg:
+                            lines.append(f"  Abbott: {avg.get('abbott', 'N/A')}%")
+                            lines.append(f"  Hinojosa: {avg.get('hinojosa', 'N/A')}%")
+                        lines.append("")
+                        lines.append("ECONOMIC:")
+                        for name, data in briefing.get('economic_indicators', {}).items():
+                            lines.append(f"  {name}: {data.get('value', 'N/A')}")
+                        lines.append("")
+                        lines.append(f"NEWS: {briefing.get('news_summary', {}).get('total_articles', 0)} articles")
+                        st.code("\n".join(lines), language=None)
             except Exception as e:
                 st.caption("Briefing unavailable")
         else:
