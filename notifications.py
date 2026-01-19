@@ -170,9 +170,20 @@ def send_pushover_notification(changes, current_state):
     # Current state
     pred = current_state.get('prediction', {})
     poll = current_state.get('polling', {})
+    primary = current_state.get('primary', {})
 
-    lines.append(f"Forecast: Abbott (R) wins R+{pred.get('margin_low', 12)}-{pred.get('margin_high', 18)}%")
-    lines.append(f"Polling: Abbott {poll.get('abbott', 50)}% - Hinojosa {poll.get('hinojosa', 42)}%")
+    # Primary predictions
+    lines.append("PRIMARIES (Mar 3):")
+    r_primary = primary.get('republican', {})
+    d_primary = primary.get('democratic', {})
+    lines.append(f"  R: Abbott {r_primary.get('abbott', '85-90')}%")
+    lines.append(f"  D: Hinojosa {d_primary.get('hinojosa', '52-58')}%")
+
+    # General election
+    lines.append("")
+    lines.append("GENERAL (Nov 3):")
+    lines.append(f"  Abbott (R) wins R+{pred.get('margin_low', 12)}-{pred.get('margin_high', 18)}%")
+    lines.append(f"  Polling: Abbott {poll.get('abbott', 50)}% - Hinojosa {poll.get('hinojosa', 42)}%")
 
     message = "\n".join(lines)
 

@@ -321,6 +321,18 @@ def get_current_model_state():
             'margin_high': 18,
             'win_probability': 99
         },
+        'primary': {
+            'republican': {
+                'abbott': '85-90',
+                'brooks': '3',
+                'goloby': '2'
+            },
+            'democratic': {
+                'hinojosa': '52-58',
+                'bell': '12-15',
+                'cole': '8-10'
+            }
+        },
         'economic': {
             'vix': 15.4,
             'unemployment': 4.5,
