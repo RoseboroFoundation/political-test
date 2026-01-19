@@ -869,7 +869,7 @@ class Transformer:
 
         if timeline_records:
             timeline_df = pd.DataFrame(timeline_records)
-            timeline_df['date'] = pd.to_datetime(timeline_df['date'])
+            timeline_df['date'] = pd.to_datetime(timeline_df['date'], utc=True)
             timeline_df = timeline_df.sort_values('date')
             self.transformed_data['timeline'] = timeline_df
             logger.info("  Created timeline dataset")
