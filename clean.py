@@ -25,6 +25,13 @@ This module provides functions to:
     * Credit spreads (BAA-10Y, AAA-10Y, IG spread, HY spread, TED spread)
     * Mortgage rates (30Y, 15Y, 5/1 ARM)
     * Yield curve metrics (slope, curvature, inversion indicators)
+- Load Industrial Production (IP) data from FRED (2000-2025):
+    * Total Industrial Production Index (INDPRO)
+    * Sector-level production (Manufacturing, Mining, Utilities)
+    * Industry-specific production (Motor Vehicles, Chemicals, Machinery, etc.)
+    * Capacity Utilization rates (Total, Manufacturing, Mining, Utilities)
+    * Growth rates (Year-over-Year, Month-over-Month)
+    * Diffusion indices (1M, 3M, 6M)
 """
 
 # =============================================================================
@@ -2490,6 +2497,453 @@ def load_comprehensive_rates_data(
     return result
 
 
+# =============================================================================
+# INDUSTRIAL PRODUCTION DATA
+# =============================================================================
+def load_industrial_production_data(
+    start_date='2000-01-01',
+    end_date=None,
+    cache_path='./data/fred'
+):
+    """
+    Load Industrial Production (IP) data from FRED (2000-2025).
+
+    Provides comprehensive industrial production measures:
+    - Total Industrial Production Index
+    - Manufacturing production
+    - Mining production
+    - Utilities production
+    - Capacity Utilization rates
+
+    Parameters:
+    -----------
+    start_date : str
+        Start date in 'YYYY-MM-DD' format
+    end_date : str
+        End date in 'YYYY-MM-DD' format (defaults to today)
+    cache_path : str
+        Directory to cache downloaded data
+
+    Returns:
+    --------
+    dict : Dictionary containing:
+        - 'total': Total industrial production index
+        - 'sectors': Sector-level production indices
+        - 'capacity': Capacity utilization rates
+        - 'combined': All IP measures in one DataFrame
+    """
+    if end_date is None:
+        end_date = datetime.today().strftime('%Y-%m-%d')
+
+    os.makedirs(cache_path, exist_ok=True)
+    cache_file = os.path.join(cache_path, f'industrial_production_{start_date}_{end_date}.pkl')
+
+    if os.path.exists(cache_file):
+        print(f"Loading cached industrial production data from {cache_file}")
+        return pd.read_pickle(cache_file)
+
+    print("Downloading Industrial Production data from FRED...")
+
+    # Total Industrial Production
+    total_series = {
+        'IP_Total': 'INDPRO',                   # Industrial Production: Total Index
+        'IP_Total_ExcludeHighTech': 'IPXHTE',   # IP excluding High-Tech
+    }
+
+    # Sector-level production
+    sector_series = {
+        'IP_Manufacturing': 'IPMAN',            # Manufacturing
+        'IP_Mining': 'IPMINE',                  # Mining
+        'IP_Utilities': 'IPUTIL',               # Utilities
+        'IP_Durable_Goods': 'IPDMAN',           # Durable Goods Manufacturing
+        'IP_Nondurable_Goods': 'IPNMAN',        # Nondurable Goods Manufacturing
+        'IP_Consumer_Goods': 'IPCONGD',         # Consumer Goods
+        'IP_Business_Equipment': 'IPBUSEQ',     # Business Equipment
+        'IP_Materials': 'IPMAT',                # Materials
+        'IP_Final_Products': 'IPFINAL',         # Final Products
+        'IP_Motor_Vehicles': 'IPG3361T3S',      # Motor Vehicles and Parts
+        'IP_Computers_Electronics': 'IPG334S',  # Computer and Electronic Products
+        'IP_Chemicals': 'IPG325S',              # Chemicals
+        'IP_Primary_Metals': 'IPG331S',         # Primary Metals
+        'IP_Food_Beverage': 'IPG311A2S',        # Food, Beverage, and Tobacco
+        'IP_Petroleum_Coal': 'IPG324S',         # Petroleum and Coal Products
+        'IP_Machinery': 'IPG333S',              # Machinery
+    }
+
+    # Capacity Utilization
+    capacity_series = {
+        'CapUtil_Total': 'TCU',                 # Total Capacity Utilization
+        'CapUtil_Manufacturing': 'MCUMFN',      # Manufacturing Capacity Utilization
+        'CapUtil_Mining': 'CAPUTLG21S',         # Mining Capacity Utilization
+        'CapUtil_Utilities': 'CAPUTLG2211S',    # Utilities Capacity Utilization
+        'CapUtil_Durable_Goods': 'CAPUTLDGMFG', # Durable Goods Capacity Utilization
+        'CapUtil_Nondurable_Goods': 'CAPUTLNDMFG',  # Nondurable Goods Capacity Utilization
+        'CapUtil_HighTech': 'CAPUTLHTI',        # High-Tech Industries Capacity Utilization
+    }
+
+    try:
+        # Download total IP
+        print("\n--- Total Industrial Production ---")
+        total_data = {}
+        for name, code in total_series.items():
+            try:
+                print(f"  Downloading {name} ({code})...")
+                df = pdr.DataReader(code, 'fred', start=start_date, end=end_date)
+                total_data[name] = df.iloc[:, 0]
+            except Exception as e:
+                print(f"  Warning: Could not download {name}: {e}")
+
+        total_df = pd.DataFrame(total_data)
+
+        # Download sector production
+        print("\n--- Sector-Level Production ---")
+        sector_data = {}
+        for name, code in sector_series.items():
+            try:
+                print(f"  Downloading {name} ({code})...")
+                df = pdr.DataReader(code, 'fred', start=start_date, end=end_date)
+                sector_data[name] = df.iloc[:, 0]
+            except Exception as e:
+                print(f"  Warning: Could not download {name}: {e}")
+
+        sector_df = pd.DataFrame(sector_data)
+
+        # Download capacity utilization
+        print("\n--- Capacity Utilization ---")
+        capacity_data = {}
+        for name, code in capacity_series.items():
+            try:
+                print(f"  Downloading {name} ({code})...")
+                df = pdr.DataReader(code, 'fred', start=start_date, end=end_date)
+                capacity_data[name] = df.iloc[:, 0]
+            except Exception as e:
+                print(f"  Warning: Could not download {name}: {e}")
+
+        capacity_df = pd.DataFrame(capacity_data)
+
+        # Combine all data
+        combined_df = pd.concat([total_df, sector_df, capacity_df], axis=1)
+
+        result = {
+            'total': total_df,
+            'sectors': sector_df,
+            'capacity': capacity_df,
+            'combined': combined_df
+        }
+
+        pd.to_pickle(result, cache_file)
+        print(f"\nCached industrial production data to {cache_file}")
+
+        # Print summary
+        print("\n" + "=" * 60)
+        print("=== Industrial Production Summary ===")
+        print("=" * 60)
+        print(f"Date range: {combined_df.index.min()} to {combined_df.index.max()}")
+        print(f"Observations: {len(combined_df)}")
+        print(f"Total IP series: {len(total_df.columns)}")
+        print(f"Sector series: {len(sector_df.columns)}")
+        print(f"Capacity utilization series: {len(capacity_df.columns)}")
+
+        print("\nLatest values:")
+        for col in combined_df.columns:
+            latest = combined_df[col].dropna().iloc[-1] if len(combined_df[col].dropna()) > 0 else 'N/A'
+            if isinstance(latest, float):
+                if 'CapUtil' in col:
+                    print(f"  {col}: {latest:.1f}%")
+                else:
+                    print(f"  {col}: {latest:.2f}")
+            else:
+                print(f"  {col}: {latest}")
+
+        return result
+
+    except Exception as e:
+        print(f"Error downloading industrial production data: {e}")
+        return None
+
+
+def load_ip_growth_rates(
+    start_date='2000-01-01',
+    end_date=None,
+    cache_path='./data/fred'
+):
+    """
+    Load Industrial Production growth rates from FRED.
+
+    Provides year-over-year and month-over-month growth rates
+    for industrial production indices.
+
+    Parameters:
+    -----------
+    start_date : str
+        Start date in 'YYYY-MM-DD' format
+    end_date : str
+        End date in 'YYYY-MM-DD' format (defaults to today)
+    cache_path : str
+        Directory to cache downloaded data
+
+    Returns:
+    --------
+    dict : Dictionary containing:
+        - 'yoy': Year-over-year growth rates
+        - 'mom': Month-over-month growth rates
+        - 'diffusion': Diffusion indices
+        - 'combined': All growth measures
+    """
+    if end_date is None:
+        end_date = datetime.today().strftime('%Y-%m-%d')
+
+    os.makedirs(cache_path, exist_ok=True)
+    cache_file = os.path.join(cache_path, f'ip_growth_{start_date}_{end_date}.pkl')
+
+    if os.path.exists(cache_file):
+        print(f"Loading cached IP growth data from {cache_file}")
+        return pd.read_pickle(cache_file)
+
+    print("Downloading IP growth rates from FRED...")
+
+    # Pre-calculated growth rates from FRED
+    growth_series = {
+        'IP_YoY_Change': 'INDPRO',              # Will calculate YoY
+        'IP_Manufacturing_YoY': 'IPMAN',        # Will calculate YoY
+    }
+
+    # Diffusion indices (percent of industries expanding)
+    diffusion_series = {
+        'IP_Diffusion_1M': 'IPDIFF1M',          # 1-Month Diffusion Index
+        'IP_Diffusion_3M': 'IPDIFF3M',          # 3-Month Diffusion Index
+        'IP_Diffusion_6M': 'IPDIFF6M',          # 6-Month Diffusion Index
+    }
+
+    try:
+        # Download base IP series for growth calculation
+        print("\n--- Industrial Production Indices ---")
+        ip_data = {}
+        for name, code in growth_series.items():
+            try:
+                base_name = name.replace('_YoY_Change', '').replace('_YoY', '')
+                print(f"  Downloading {base_name} ({code})...")
+                df = pdr.DataReader(code, 'fred', start=start_date, end=end_date)
+                ip_data[base_name] = df.iloc[:, 0]
+            except Exception as e:
+                print(f"  Warning: Could not download {name}: {e}")
+
+        ip_df = pd.DataFrame(ip_data)
+
+        # Calculate YoY growth rates
+        print("\nCalculating year-over-year growth rates...")
+        yoy_df = ip_df.pct_change(periods=12) * 100
+        yoy_df.columns = [f'{col}_YoY' for col in yoy_df.columns]
+
+        # Calculate MoM growth rates
+        print("Calculating month-over-month growth rates...")
+        mom_df = ip_df.pct_change() * 100
+        mom_df.columns = [f'{col}_MoM' for col in mom_df.columns]
+
+        # Download diffusion indices
+        print("\n--- Diffusion Indices ---")
+        diffusion_data = {}
+        for name, code in diffusion_series.items():
+            try:
+                print(f"  Downloading {name} ({code})...")
+                df = pdr.DataReader(code, 'fred', start=start_date, end=end_date)
+                diffusion_data[name] = df.iloc[:, 0]
+            except Exception as e:
+                print(f"  Warning: Could not download {name}: {e}")
+
+        diffusion_df = pd.DataFrame(diffusion_data)
+
+        # Combine all data
+        combined_df = pd.concat([yoy_df, mom_df, diffusion_df], axis=1)
+
+        result = {
+            'raw': ip_df,
+            'yoy': yoy_df,
+            'mom': mom_df,
+            'diffusion': diffusion_df,
+            'combined': combined_df
+        }
+
+        pd.to_pickle(result, cache_file)
+        print(f"\nCached IP growth data to {cache_file}")
+
+        # Print summary
+        print("\n" + "=" * 60)
+        print("=== IP Growth Rates Summary ===")
+        print("=" * 60)
+        print(f"Date range: {combined_df.index.min()} to {combined_df.index.max()}")
+        print(f"Observations: {len(combined_df)}")
+
+        print("\nLatest growth rates:")
+        for col in yoy_df.columns:
+            latest = yoy_df[col].dropna().iloc[-1] if len(yoy_df[col].dropna()) > 0 else 'N/A'
+            if isinstance(latest, float):
+                print(f"  {col}: {latest:.2f}%")
+            else:
+                print(f"  {col}: {latest}")
+
+        if len(diffusion_df) > 0:
+            print("\nLatest diffusion indices:")
+            for col in diffusion_df.columns:
+                latest = diffusion_df[col].dropna().iloc[-1] if len(diffusion_df[col].dropna()) > 0 else 'N/A'
+                if isinstance(latest, float):
+                    print(f"  {col}: {latest:.1f}")
+                else:
+                    print(f"  {col}: {latest}")
+
+        return result
+
+    except Exception as e:
+        print(f"Error downloading IP growth data: {e}")
+        return None
+
+
+def load_comprehensive_ip_data(
+    start_date='2000-01-01',
+    end_date=None,
+    cache_path='./data/fred'
+):
+    """
+    Load comprehensive Industrial Production dataset from FRED (2000-2025).
+
+    This function aggregates:
+    - Total Industrial Production indices
+    - Sector-level production (Manufacturing, Mining, Utilities)
+    - Industry-specific production (Motor Vehicles, Chemicals, etc.)
+    - Capacity Utilization rates
+    - Growth rates (YoY, MoM)
+    - Diffusion indices
+
+    Parameters:
+    -----------
+    start_date : str
+        Start date in 'YYYY-MM-DD' format
+    end_date : str
+        End date in 'YYYY-MM-DD' format (defaults to today)
+    cache_path : str
+        Directory to cache downloaded data
+
+    Returns:
+    --------
+    dict : Dictionary containing:
+        - 'production': IP indices and sector data
+        - 'growth': Growth rates and diffusion indices
+        - 'combined': All IP measures merged on date
+        - 'summary_stats': Summary statistics for all series
+    """
+    if end_date is None:
+        end_date = datetime.today().strftime('%Y-%m-%d')
+
+    os.makedirs(cache_path, exist_ok=True)
+    cache_file = os.path.join(
+        cache_path,
+        f'comprehensive_ip_{start_date}_{end_date}.pkl'
+    )
+
+    if os.path.exists(cache_file):
+        print(f"Loading cached comprehensive IP data from {cache_file}")
+        return pd.read_pickle(cache_file)
+
+    print("=" * 60)
+    print("Loading Comprehensive Industrial Production Data (2000-2025)")
+    print("=" * 60)
+
+    # Load production data
+    print("\n[1/2] Loading industrial production indices...")
+    production_data = load_industrial_production_data(start_date, end_date, cache_path)
+
+    # Load growth rates
+    print("\n[2/2] Loading growth rates and diffusion indices...")
+    growth_data = load_ip_growth_rates(start_date, end_date, cache_path)
+
+    # Combine all data
+    combined_dfs = []
+
+    if production_data and 'combined' in production_data:
+        combined_dfs.append(production_data['combined'])
+
+    if growth_data and 'combined' in growth_data:
+        combined_dfs.append(growth_data['combined'])
+
+    if combined_dfs:
+        combined_df = pd.concat(combined_dfs, axis=1)
+        # Remove duplicate columns if any
+        combined_df = combined_df.loc[:, ~combined_df.columns.duplicated()]
+    else:
+        combined_df = pd.DataFrame()
+
+    # Calculate summary statistics
+    summary_stats = {}
+    if len(combined_df) > 0:
+        for col in combined_df.columns:
+            series = combined_df[col].dropna()
+            if len(series) > 0:
+                summary_stats[col] = {
+                    'count': len(series),
+                    'mean': series.mean(),
+                    'std': series.std(),
+                    'min': series.min(),
+                    'max': series.max(),
+                    'latest': series.iloc[-1],
+                    'start_date': series.index.min(),
+                    'end_date': series.index.max()
+                }
+
+    result = {
+        'production': production_data,
+        'growth': growth_data,
+        'combined': combined_df,
+        'summary_stats': summary_stats
+    }
+
+    pd.to_pickle(result, cache_file)
+    print(f"\nCached comprehensive IP data to {cache_file}")
+
+    # Print final summary
+    print("\n" + "=" * 60)
+    print("=== Comprehensive Industrial Production Summary ===")
+    print("=" * 60)
+    print(f"Total series loaded: {len(combined_df.columns)}")
+    print(f"Date range: {combined_df.index.min()} to {combined_df.index.max()}")
+    print(f"Total observations: {len(combined_df)}")
+
+    print("\n--- Series Categories ---")
+    if production_data:
+        print(f"Production indices: {len(production_data['combined'].columns)}")
+    if growth_data:
+        print(f"Growth rates & diffusion: {len(growth_data['combined'].columns)}")
+
+    # Key metrics
+    if production_data and 'total' in production_data:
+        total_df = production_data['total']
+        if 'IP_Total' in total_df.columns:
+            latest_ip = total_df['IP_Total'].dropna().iloc[-1]
+            print(f"\nLatest Total IP Index: {latest_ip:.2f}")
+
+    if production_data and 'capacity' in production_data:
+        cap_df = production_data['capacity']
+        if 'CapUtil_Total' in cap_df.columns:
+            latest_cap = cap_df['CapUtil_Total'].dropna().iloc[-1]
+            print(f"Latest Capacity Utilization: {latest_cap:.1f}%")
+
+    if growth_data and 'yoy' in growth_data:
+        yoy_df = growth_data['yoy']
+        if 'IP_Total_YoY' in yoy_df.columns or 'IP_YoY' in yoy_df.columns:
+            col = 'IP_Total_YoY' if 'IP_Total_YoY' in yoy_df.columns else 'IP_YoY'
+            latest_growth = yoy_df[col].dropna().iloc[-1] if len(yoy_df[col].dropna()) > 0 else None
+            if latest_growth is not None:
+                print(f"Latest IP YoY Growth: {latest_growth:.2f}%")
+
+    print("\n" + "=" * 60)
+    print("Citation:")
+    print("Board of Governors of the Federal Reserve System (US)")
+    print("Federal Reserve Economic Data (FRED), Federal Reserve Bank of St. Louis")
+    print("https://fred.stlouisfed.org/")
+    print("=" * 60)
+
+    return result
+
+
 def load_additional_macro_data(
     start_date='2000-01-01',
     end_date=None,
@@ -2781,6 +3235,9 @@ def load_data():
         - policy_rates: Fed Funds, SOFR, Prime, discount rates
         - credit_spreads: Corporate yields, credit spreads, mortgages
         - comprehensive_rates: All rates with yield curve metrics
+        - industrial_production: IP indices, sectors, capacity utilization
+        - ip_growth: IP growth rates (YoY, MoM) and diffusion indices
+        - comprehensive_ip: All IP measures combined
     """
     data_dict = {}
 
@@ -2940,6 +3397,42 @@ def load_data():
     except Exception as e:
         print(f"Error loading comprehensive rates data: {e}")
         data_dict['comprehensive_rates'] = None
+
+    # Load industrial production data
+    try:
+        data_dict['industrial_production'] = load_industrial_production_data(
+            start_date='2000-01-01',
+            end_date='2025-12-31',
+            cache_path='./data/fred'
+        )
+        print("Loaded industrial production data")
+    except Exception as e:
+        print(f"Error loading industrial production data: {e}")
+        data_dict['industrial_production'] = None
+
+    # Load IP growth rates and diffusion indices
+    try:
+        data_dict['ip_growth'] = load_ip_growth_rates(
+            start_date='2000-01-01',
+            end_date='2025-12-31',
+            cache_path='./data/fred'
+        )
+        print("Loaded IP growth rates data")
+    except Exception as e:
+        print(f"Error loading IP growth rates data: {e}")
+        data_dict['ip_growth'] = None
+
+    # Load comprehensive IP data (all IP measures combined)
+    try:
+        data_dict['comprehensive_ip'] = load_comprehensive_ip_data(
+            start_date='2000-01-01',
+            end_date='2025-12-31',
+            cache_path='./data/fred'
+        )
+        print("Loaded comprehensive IP data")
+    except Exception as e:
+        print(f"Error loading comprehensive IP data: {e}")
+        data_dict['comprehensive_ip'] = None
 
     return data_dict
 
