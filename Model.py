@@ -1,0 +1,1536 @@
+"""
+Statistical Model and Descriptive Analysis for Texas Governor Race Data.
+
+This module provides descriptive statistics and analytical models using
+data from the Snowflake database. It includes summary statistics,
+distributions, correlations, and trend analysis.
+
+Usage:
+    python Model.py --summary              # Run all summary statistics
+    python Model.py --elections            # Election statistics
+    python Model.py --finance              # Campaign finance statistics
+    python Model.py --polling              # Polling statistics
+    python Model.py --news                 # News coverage statistics
+    python Model.py --correlations         # Cross-dataset correlations
+    python Model.py --export               # Export results to files
+"""
+
+# =============================================================================
+# IMPORTS
+# =============================================================================
+import os
+import sys
+import argparse
+import logging
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional, Any, Tuple
+import json
+
+import pandas as pd
+import numpy as np
+
+# Import from project modules
+from database import (
+    DatabaseManager,
+    SnowflakeConnection,
+    SNOWFLAKE_TABLES,
+    DEFAULT_SCHEMA
+)
+from ETL import (
+    ETLPipeline,
+    DATA_DICTIONARY,
+    DEFAULT_START_YEAR,
+    DEFAULT_END_YEAR
+)
+
+# =============================================================================
+# CONFIGURATION
+# =============================================================================
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Output directory for reports
+OUTPUT_DIR = './output/statistics'
+
+
+# =============================================================================
+# DESCRIPTIVE STATISTICS BASE CLASS
+# =============================================================================
+class DescriptiveStatistics:
+    """
+    Base class for computing descriptive statistics.
+    """
+
+    @staticmethod
+    def numeric_summary(series: pd.Series) -> Dict[str, float]:
+        """
+        Compute summary statistics for a numeric series.
+
+        Args:
+            series: Pandas Series with numeric data
+
+        Returns:
+            Dictionary of summary statistics
+        """
+        if series.empty or series.isna().all():
+            return {}
+
+        return {
+            'count': int(series.count()),
+            'mean': round(series.mean(), 2),
+            'std': round(series.std(), 2),
+            'min': round(series.min(), 2),
+            'q25': round(series.quantile(0.25), 2),
+            'median': round(series.median(), 2),
+            'q75': round(series.quantile(0.75), 2),
+            'max': round(series.max(), 2),
+            'skewness': round(series.skew(), 3),
+            'kurtosis': round(series.kurtosis(), 3),
+            'iqr': round(series.quantile(0.75) - series.quantile(0.25), 2),
+            'range': round(series.max() - series.min(), 2),
+            'cv': round(series.std() / series.mean() * 100, 2) if series.mean() != 0 else None
+        }
+
+    @staticmethod
+    def categorical_summary(series: pd.Series) -> Dict[str, Any]:
+        """
+        Compute summary statistics for a categorical series.
+
+        Args:
+            series: Pandas Series with categorical data
+
+        Returns:
+            Dictionary of summary statistics
+        """
+        if series.empty:
+            return {}
+
+        value_counts = series.value_counts()
+
+        return {
+            'count': int(series.count()),
+            'unique': int(series.nunique()),
+            'top': value_counts.index[0] if len(value_counts) > 0 else None,
+            'top_freq': int(value_counts.iloc[0]) if len(value_counts) > 0 else 0,
+            'top_pct': round(value_counts.iloc[0] / len(series) * 100, 1) if len(series) > 0 else 0,
+            'distribution': value_counts.head(10).to_dict()
+        }
+
+    @staticmethod
+    def time_series_summary(df: pd.DataFrame, date_col: str, value_col: str) -> Dict[str, Any]:
+        """
+        Compute time series statistics.
+
+        Args:
+            df: DataFrame with time series data
+            date_col: Name of date column
+            value_col: Name of value column
+
+        Returns:
+            Dictionary of time series statistics
+        """
+        if df.empty:
+            return {}
+
+        df = df.copy()
+        df[date_col] = pd.to_datetime(df[date_col])
+        df = df.sort_values(date_col)
+
+        values = df[value_col].dropna()
+
+        if len(values) < 2:
+            return {}
+
+        # Calculate changes
+        changes = values.diff().dropna()
+
+        return {
+            'start_date': df[date_col].min().strftime('%Y-%m-%d'),
+            'end_date': df[date_col].max().strftime('%Y-%m-%d'),
+            'n_observations': len(values),
+            'first_value': round(values.iloc[0], 2),
+            'last_value': round(values.iloc[-1], 2),
+            'total_change': round(values.iloc[-1] - values.iloc[0], 2),
+            'pct_change': round((values.iloc[-1] - values.iloc[0]) / values.iloc[0] * 100, 2) if values.iloc[0] != 0 else None,
+            'avg_change': round(changes.mean(), 2),
+            'volatility': round(changes.std(), 2),
+            'max_increase': round(changes.max(), 2),
+            'max_decrease': round(changes.min(), 2)
+        }
+
+
+# =============================================================================
+# ELECTION STATISTICS
+# =============================================================================
+class ElectionStatistics(DescriptiveStatistics):
+    """
+    Descriptive statistics for election data.
+    """
+
+    def __init__(self, db_manager: DatabaseManager = None, data: Dict[str, pd.DataFrame] = None):
+        """
+        Initialize with database connection or pre-loaded data.
+
+        Args:
+            db_manager: DatabaseManager instance
+            data: Pre-loaded data dictionary
+        """
+        self.db = db_manager
+        self.data = data or {}
+        self.results = {}
+
+    def load_data(self) -> None:
+        """Load election data from database."""
+        if self.db:
+            try:
+                self.data['statewide'] = self.db.run_query(
+                    "SELECT * FROM ELECTION_RESULTS_STATEWIDE"
+                )
+                self.data['historical'] = self.db.run_query(
+                    "SELECT * FROM ELECTION_HISTORICAL"
+                )
+            except Exception as e:
+                logger.warning(f"Could not load from database: {e}")
+
+    def compute_all(self) -> Dict[str, Any]:
+        """
+        Compute all election statistics.
+
+        Returns:
+            Dictionary of all statistics
+        """
+        logger.info("Computing election statistics...")
+
+        self.results = {
+            'vote_statistics': self._vote_statistics(),
+            'margin_statistics': self._margin_statistics(),
+            'turnout_statistics': self._turnout_statistics(),
+            'party_performance': self._party_performance(),
+            'incumbent_analysis': self._incumbent_analysis(),
+            'historical_trends': self._historical_trends()
+        }
+
+        return self.results
+
+    def _vote_statistics(self) -> Dict[str, Any]:
+        """Compute vote count statistics."""
+        if 'statewide' not in self.data or self.data['statewide'].empty:
+            return {}
+
+        df = self.data['statewide']
+
+        # Find vote column
+        vote_col = None
+        for col in ['VOTES', 'votes', 'Votes']:
+            if col in df.columns:
+                vote_col = col
+                break
+
+        if vote_col is None:
+            return {}
+
+        stats = {
+            'overall': self.numeric_summary(df[vote_col]),
+            'by_party': {},
+            'by_year': {}
+        }
+
+        # By party
+        party_col = 'PARTY' if 'PARTY' in df.columns else 'party'
+        if party_col in df.columns:
+            for party in df[party_col].unique():
+                party_votes = df[df[party_col] == party][vote_col]
+                stats['by_party'][party] = self.numeric_summary(party_votes)
+
+        # By year
+        year_col = 'ELECTION_YEAR' if 'ELECTION_YEAR' in df.columns else 'election_year'
+        if year_col in df.columns:
+            for year in sorted(df[year_col].unique()):
+                year_votes = df[df[year_col] == year][vote_col]
+                stats['by_year'][int(year)] = {
+                    'total_votes': int(year_votes.sum()),
+                    'max_candidate_votes': int(year_votes.max()),
+                    'candidates': int(len(year_votes))
+                }
+
+        return stats
+
+    def _margin_statistics(self) -> Dict[str, Any]:
+        """Compute victory margin statistics."""
+        if 'historical' not in self.data or self.data['historical'].empty:
+            return {}
+
+        df = self.data['historical']
+
+        margin_col = 'MARGIN_PERCENTAGE' if 'MARGIN_PERCENTAGE' in df.columns else 'margin_percentage'
+
+        if margin_col not in df.columns:
+            return {}
+
+        margins = df[margin_col].dropna()
+
+        stats = {
+            'summary': self.numeric_summary(margins),
+            'by_year': {}
+        }
+
+        year_col = 'ELECTION_YEAR' if 'ELECTION_YEAR' in df.columns else 'election_year'
+        if year_col in df.columns:
+            for _, row in df.iterrows():
+                year = int(row[year_col])
+                stats['by_year'][year] = {
+                    'margin_pct': round(row[margin_col], 2) if pd.notna(row[margin_col]) else None,
+                    'winner': row.get('WINNER') or row.get('winner'),
+                    'winner_party': row.get('WINNER_PARTY') or row.get('winner_party')
+                }
+
+        # Competitiveness analysis
+        stats['competitiveness'] = {
+            'closest_race': {
+                'year': int(df.loc[margins.idxmin(), year_col]),
+                'margin': round(margins.min(), 2)
+            },
+            'largest_margin': {
+                'year': int(df.loc[margins.idxmax(), year_col]),
+                'margin': round(margins.max(), 2)
+            },
+            'avg_margin': round(margins.mean(), 2),
+            'races_under_10pct': int((margins < 10).sum()),
+            'races_under_5pct': int((margins < 5).sum())
+        }
+
+        return stats
+
+    def _turnout_statistics(self) -> Dict[str, Any]:
+        """Compute voter turnout statistics."""
+        if 'historical' not in self.data or self.data['historical'].empty:
+            return {}
+
+        df = self.data['historical']
+
+        turnout_col = 'TURNOUT_PERCENTAGE' if 'TURNOUT_PERCENTAGE' in df.columns else 'turnout_percentage'
+        total_col = 'TOTAL_VOTES' if 'TOTAL_VOTES' in df.columns else 'total_votes'
+
+        stats = {}
+
+        if turnout_col in df.columns:
+            turnout = df[turnout_col].dropna()
+            stats['turnout_pct'] = self.numeric_summary(turnout)
+
+        if total_col in df.columns:
+            totals = df[total_col].dropna()
+            stats['total_votes'] = self.numeric_summary(totals)
+
+            # Growth analysis
+            if len(totals) > 1:
+                totals_sorted = df.sort_values(
+                    'ELECTION_YEAR' if 'ELECTION_YEAR' in df.columns else 'election_year'
+                )[total_col]
+                stats['vote_growth'] = {
+                    'total_growth': int(totals_sorted.iloc[-1] - totals_sorted.iloc[0]),
+                    'pct_growth': round(
+                        (totals_sorted.iloc[-1] - totals_sorted.iloc[0]) / totals_sorted.iloc[0] * 100, 1
+                    ),
+                    'avg_growth_per_cycle': int(totals_sorted.diff().mean())
+                }
+
+        return stats
+
+    def _party_performance(self) -> Dict[str, Any]:
+        """Analyze party performance over time."""
+        if 'statewide' not in self.data or self.data['statewide'].empty:
+            return {}
+
+        df = self.data['statewide']
+
+        party_col = 'PARTY' if 'PARTY' in df.columns else 'party'
+        pct_col = 'VOTE_PERCENTAGE' if 'VOTE_PERCENTAGE' in df.columns else 'vote_percentage'
+        year_col = 'ELECTION_YEAR' if 'ELECTION_YEAR' in df.columns else 'election_year'
+
+        if party_col not in df.columns or pct_col not in df.columns:
+            return {}
+
+        stats = {'by_party': {}}
+
+        for party in ['R', 'D']:
+            party_df = df[df[party_col] == party]
+
+            if party_df.empty:
+                continue
+
+            pcts = party_df[pct_col].dropna()
+
+            stats['by_party'][party] = {
+                'avg_vote_share': round(pcts.mean(), 2),
+                'min_vote_share': round(pcts.min(), 2),
+                'max_vote_share': round(pcts.max(), 2),
+                'std_vote_share': round(pcts.std(), 2),
+                'wins': int(party_df[party_df.get('WINNER', party_df.get('winner', False)) == True].shape[0]),
+                'elections': int(party_df[year_col].nunique())
+            }
+
+        # Two-party vote share trend
+        stats['two_party_trend'] = []
+        for year in sorted(df[year_col].unique()):
+            year_df = df[df[year_col] == year]
+            r_pct = year_df[year_df[party_col] == 'R'][pct_col].sum()
+            d_pct = year_df[year_df[party_col] == 'D'][pct_col].sum()
+
+            if r_pct + d_pct > 0:
+                stats['two_party_trend'].append({
+                    'year': int(year),
+                    'r_two_party_pct': round(r_pct / (r_pct + d_pct) * 100, 2),
+                    'd_two_party_pct': round(d_pct / (r_pct + d_pct) * 100, 2)
+                })
+
+        return stats
+
+    def _incumbent_analysis(self) -> Dict[str, Any]:
+        """Analyze incumbent performance."""
+        if 'historical' not in self.data or self.data['historical'].empty:
+            return {}
+
+        df = self.data['historical']
+
+        inc_col = 'INCUMBENT_WON' if 'INCUMBENT_WON' in df.columns else 'incumbent_won'
+
+        if inc_col not in df.columns:
+            return {}
+
+        incumbent_won = df[inc_col].dropna()
+
+        return {
+            'total_races': int(len(incumbent_won)),
+            'incumbent_wins': int(incumbent_won.sum()),
+            'incumbent_losses': int((~incumbent_won).sum()),
+            'incumbent_win_rate': round(incumbent_won.mean() * 100, 1)
+        }
+
+    def _historical_trends(self) -> Dict[str, Any]:
+        """Analyze historical trends."""
+        if 'historical' not in self.data or self.data['historical'].empty:
+            return {}
+
+        df = self.data['historical']
+
+        year_col = 'ELECTION_YEAR' if 'ELECTION_YEAR' in df.columns else 'election_year'
+        margin_col = 'MARGIN_PERCENTAGE' if 'MARGIN_PERCENTAGE' in df.columns else 'margin_percentage'
+
+        df_sorted = df.sort_values(year_col)
+
+        trends = {
+            'elections_analyzed': int(len(df)),
+            'year_range': f"{int(df[year_col].min())}-{int(df[year_col].max())}"
+        }
+
+        if margin_col in df.columns:
+            margins = df_sorted[margin_col].dropna()
+            if len(margins) > 1:
+                # Linear trend
+                x = np.arange(len(margins))
+                slope, intercept = np.polyfit(x, margins, 1)
+
+                trends['margin_trend'] = {
+                    'slope': round(slope, 3),
+                    'direction': 'increasing' if slope > 0 else 'decreasing',
+                    'interpretation': f"Margins {'widening' if slope > 0 else 'narrowing'} by ~{abs(round(slope, 1))} points per cycle"
+                }
+
+        return trends
+
+
+# =============================================================================
+# CAMPAIGN FINANCE STATISTICS
+# =============================================================================
+class CampaignFinanceStatistics(DescriptiveStatistics):
+    """
+    Descriptive statistics for campaign finance data.
+    """
+
+    def __init__(self, db_manager: DatabaseManager = None, data: Dict[str, pd.DataFrame] = None):
+        """Initialize with database connection or pre-loaded data."""
+        self.db = db_manager
+        self.data = data or {}
+        self.results = {}
+
+    def load_data(self) -> None:
+        """Load campaign finance data from database."""
+        if self.db:
+            try:
+                self.data['summary'] = self.db.run_query(
+                    "SELECT * FROM CAMPAIGN_FINANCE_SUMMARY"
+                )
+                self.data['expenditures'] = self.db.run_query(
+                    "SELECT * FROM CAMPAIGN_FINANCE_EXPENDITURES"
+                )
+            except Exception as e:
+                logger.warning(f"Could not load from database: {e}")
+
+    def compute_all(self) -> Dict[str, Any]:
+        """Compute all campaign finance statistics."""
+        logger.info("Computing campaign finance statistics...")
+
+        self.results = {
+            'fundraising_statistics': self._fundraising_statistics(),
+            'spending_statistics': self._spending_statistics(),
+            'contributor_statistics': self._contributor_statistics(),
+            'party_comparison': self._party_comparison(),
+            'money_vs_results': self._money_vs_results(),
+            'expenditure_categories': self._expenditure_categories()
+        }
+
+        return self.results
+
+    def _fundraising_statistics(self) -> Dict[str, Any]:
+        """Compute fundraising statistics."""
+        if 'summary' not in self.data or self.data['summary'].empty:
+            return {}
+
+        df = self.data['summary']
+
+        raised_col = 'TOTAL_RAISED' if 'TOTAL_RAISED' in df.columns else 'total_raised'
+
+        if raised_col not in df.columns:
+            return {}
+
+        raised = df[raised_col].dropna()
+
+        stats = {
+            'overall': self.numeric_summary(raised),
+            'by_year': {},
+            'by_party': {}
+        }
+
+        year_col = 'ELECTION_YEAR' if 'ELECTION_YEAR' in df.columns else 'election_year'
+        party_col = 'PARTY' if 'PARTY' in df.columns else 'party'
+
+        # By year
+        if year_col in df.columns:
+            for year in sorted(df[year_col].unique()):
+                year_df = df[df[year_col] == year]
+                stats['by_year'][int(year)] = {
+                    'total_raised': int(year_df[raised_col].sum()),
+                    'candidates': int(len(year_df)),
+                    'avg_per_candidate': int(year_df[raised_col].mean())
+                }
+
+        # By party
+        if party_col in df.columns:
+            for party in df[party_col].unique():
+                party_raised = df[df[party_col] == party][raised_col]
+                stats['by_party'][party] = {
+                    'total': int(party_raised.sum()),
+                    'mean': int(party_raised.mean()),
+                    'max': int(party_raised.max())
+                }
+
+        return stats
+
+    def _spending_statistics(self) -> Dict[str, Any]:
+        """Compute spending statistics."""
+        if 'summary' not in self.data or self.data['summary'].empty:
+            return {}
+
+        df = self.data['summary']
+
+        spent_col = 'TOTAL_SPENT' if 'TOTAL_SPENT' in df.columns else 'total_spent'
+        raised_col = 'TOTAL_RAISED' if 'TOTAL_RAISED' in df.columns else 'total_raised'
+
+        if spent_col not in df.columns:
+            return {}
+
+        spent = df[spent_col].dropna()
+
+        stats = {
+            'overall': self.numeric_summary(spent)
+        }
+
+        # Burn rate analysis
+        if raised_col in df.columns:
+            df_valid = df[(df[raised_col] > 0) & (df[spent_col] > 0)].copy()
+            df_valid['burn_rate'] = df_valid[spent_col] / df_valid[raised_col] * 100
+
+            stats['burn_rate'] = {
+                'mean': round(df_valid['burn_rate'].mean(), 1),
+                'min': round(df_valid['burn_rate'].min(), 1),
+                'max': round(df_valid['burn_rate'].max(), 1)
+            }
+
+        return stats
+
+    def _contributor_statistics(self) -> Dict[str, Any]:
+        """Compute contributor statistics."""
+        if 'summary' not in self.data or self.data['summary'].empty:
+            return {}
+
+        df = self.data['summary']
+
+        contrib_col = 'NUM_CONTRIBUTORS' if 'NUM_CONTRIBUTORS' in df.columns else 'num_contributors'
+        avg_col = 'AVG_CONTRIBUTION' if 'AVG_CONTRIBUTION' in df.columns else 'avg_contribution'
+
+        stats = {}
+
+        if contrib_col in df.columns:
+            contributors = df[contrib_col].dropna()
+            stats['num_contributors'] = self.numeric_summary(contributors)
+
+        if avg_col in df.columns:
+            avg_contrib = df[avg_col].dropna()
+            stats['avg_contribution'] = self.numeric_summary(avg_contrib)
+
+        # Grassroots vs big donor analysis
+        if avg_col in df.columns:
+            df_valid = df[df[avg_col].notna()].copy()
+
+            stats['donor_type_analysis'] = {
+                'grassroots_campaigns': int((df_valid[avg_col] < 500).sum()),
+                'big_donor_campaigns': int((df_valid[avg_col] >= 1000).sum()),
+                'avg_contribution_threshold': 500
+            }
+
+        return stats
+
+    def _party_comparison(self) -> Dict[str, Any]:
+        """Compare parties on fundraising metrics."""
+        if 'summary' not in self.data or self.data['summary'].empty:
+            return {}
+
+        df = self.data['summary']
+
+        party_col = 'PARTY' if 'PARTY' in df.columns else 'party'
+        raised_col = 'TOTAL_RAISED' if 'TOTAL_RAISED' in df.columns else 'total_raised'
+        contrib_col = 'NUM_CONTRIBUTORS' if 'NUM_CONTRIBUTORS' in df.columns else 'num_contributors'
+        year_col = 'ELECTION_YEAR' if 'ELECTION_YEAR' in df.columns else 'election_year'
+
+        if party_col not in df.columns:
+            return {}
+
+        stats = {'by_cycle': []}
+
+        for year in sorted(df[year_col].unique()):
+            year_df = df[df[year_col] == year]
+
+            r_df = year_df[year_df[party_col] == 'R']
+            d_df = year_df[year_df[party_col] == 'D']
+
+            cycle_stats = {'year': int(year)}
+
+            if not r_df.empty and raised_col in r_df.columns:
+                cycle_stats['r_raised'] = int(r_df[raised_col].sum())
+            if not d_df.empty and raised_col in d_df.columns:
+                cycle_stats['d_raised'] = int(d_df[raised_col].sum())
+
+            if 'r_raised' in cycle_stats and 'd_raised' in cycle_stats:
+                cycle_stats['r_advantage'] = cycle_stats['r_raised'] - cycle_stats['d_raised']
+                cycle_stats['r_ratio'] = round(cycle_stats['r_raised'] / cycle_stats['d_raised'], 2) if cycle_stats['d_raised'] > 0 else None
+
+            if not r_df.empty and contrib_col in r_df.columns:
+                cycle_stats['r_contributors'] = int(r_df[contrib_col].sum())
+            if not d_df.empty and contrib_col in d_df.columns:
+                cycle_stats['d_contributors'] = int(d_df[contrib_col].sum())
+
+            stats['by_cycle'].append(cycle_stats)
+
+        return stats
+
+    def _money_vs_results(self) -> Dict[str, Any]:
+        """Analyze relationship between money and election results."""
+        if 'summary' not in self.data or self.data['summary'].empty:
+            return {}
+
+        df = self.data['summary']
+
+        raised_col = 'TOTAL_RAISED' if 'TOTAL_RAISED' in df.columns else 'total_raised'
+        year_col = 'ELECTION_YEAR' if 'ELECTION_YEAR' in df.columns else 'election_year'
+        party_col = 'PARTY' if 'PARTY' in df.columns else 'party'
+
+        stats = {
+            'top_fundraiser_won': 0,
+            'top_fundraiser_lost': 0,
+            'cycles_analyzed': 0
+        }
+
+        # Winners in Texas Governor races (R won all 2010-2022)
+        winners = {2010: 'R', 2014: 'R', 2018: 'R', 2022: 'R'}
+
+        for year in df[year_col].unique():
+            year_df = df[df[year_col] == year]
+
+            if len(year_df) < 2:
+                continue
+
+            # Find top fundraiser
+            top_idx = year_df[raised_col].idxmax()
+            top_party = year_df.loc[top_idx, party_col]
+
+            winner_party = winners.get(int(year))
+
+            if winner_party:
+                stats['cycles_analyzed'] += 1
+                if top_party == winner_party:
+                    stats['top_fundraiser_won'] += 1
+                else:
+                    stats['top_fundraiser_lost'] += 1
+
+        if stats['cycles_analyzed'] > 0:
+            stats['money_win_rate'] = round(
+                stats['top_fundraiser_won'] / stats['cycles_analyzed'] * 100, 1
+            )
+
+        return stats
+
+    def _expenditure_categories(self) -> Dict[str, Any]:
+        """Analyze expenditure by category."""
+        if 'expenditures' not in self.data or self.data['expenditures'].empty:
+            return {}
+
+        df = self.data['expenditures']
+
+        cat_col = 'CATEGORY' if 'CATEGORY' in df.columns else 'category'
+        amt_col = 'AMOUNT' if 'AMOUNT' in df.columns else 'amount'
+
+        if cat_col not in df.columns or amt_col not in df.columns:
+            return {}
+
+        category_totals = df.groupby(cat_col)[amt_col].sum().sort_values(ascending=False)
+
+        total = category_totals.sum()
+
+        stats = {
+            'categories': {},
+            'total_expenditures': int(total)
+        }
+
+        for cat, amount in category_totals.items():
+            stats['categories'][cat] = {
+                'amount': int(amount),
+                'percentage': round(amount / total * 100, 1)
+            }
+
+        return stats
+
+
+# =============================================================================
+# POLLING STATISTICS
+# =============================================================================
+class PollingStatistics(DescriptiveStatistics):
+    """
+    Descriptive statistics for polling data.
+    """
+
+    def __init__(self, db_manager: DatabaseManager = None, data: Dict[str, pd.DataFrame] = None):
+        """Initialize with database connection or pre-loaded data."""
+        self.db = db_manager
+        self.data = data or {}
+        self.results = {}
+
+    def load_data(self) -> None:
+        """Load polling data from database."""
+        if self.db:
+            try:
+                self.data['polls'] = self.db.run_query("SELECT * FROM POLLS")
+                self.data['averages'] = self.db.run_query("SELECT * FROM POLL_AVERAGES")
+                self.data['pollsters'] = self.db.run_query("SELECT * FROM POLLSTERS")
+                self.data['trends'] = self.db.run_query("SELECT * FROM POLL_TRENDS")
+            except Exception as e:
+                logger.warning(f"Could not load from database: {e}")
+
+    def compute_all(self) -> Dict[str, Any]:
+        """Compute all polling statistics."""
+        logger.info("Computing polling statistics...")
+
+        self.results = {
+            'poll_summary': self._poll_summary(),
+            'margin_statistics': self._margin_statistics(),
+            'polling_accuracy': self._polling_accuracy(),
+            'pollster_analysis': self._pollster_analysis(),
+            'sample_size_analysis': self._sample_size_analysis(),
+            'trend_analysis': self._trend_analysis()
+        }
+
+        return self.results
+
+    def _poll_summary(self) -> Dict[str, Any]:
+        """Compute overall poll summary statistics."""
+        if 'polls' not in self.data or self.data['polls'].empty:
+            return {}
+
+        df = self.data['polls']
+
+        year_col = 'ELECTION_YEAR' if 'ELECTION_YEAR' in df.columns else 'election_year'
+
+        stats = {
+            'total_polls': int(len(df)),
+            'unique_pollsters': int(df['POLLSTER' if 'POLLSTER' in df.columns else 'pollster'].nunique()),
+            'by_year': {}
+        }
+
+        if year_col in df.columns:
+            for year in sorted(df[year_col].unique()):
+                year_df = df[df[year_col] == year]
+                stats['by_year'][int(year)] = {
+                    'num_polls': int(len(year_df)),
+                    'pollsters': int(year_df['POLLSTER' if 'POLLSTER' in df.columns else 'pollster'].nunique())
+                }
+
+        return stats
+
+    def _margin_statistics(self) -> Dict[str, Any]:
+        """Compute poll margin statistics."""
+        if 'polls' not in self.data or self.data['polls'].empty:
+            return {}
+
+        df = self.data['polls']
+
+        margin_col = 'MARGIN' if 'MARGIN' in df.columns else 'margin'
+        year_col = 'ELECTION_YEAR' if 'ELECTION_YEAR' in df.columns else 'election_year'
+
+        if margin_col not in df.columns:
+            return {}
+
+        margins = df[margin_col].dropna()
+
+        stats = {
+            'overall': self.numeric_summary(margins),
+            'by_year': {}
+        }
+
+        if year_col in df.columns:
+            for year in sorted(df[year_col].unique()):
+                year_margins = df[df[year_col] == year][margin_col].dropna()
+                stats['by_year'][int(year)] = self.numeric_summary(year_margins)
+
+        return stats
+
+    def _polling_accuracy(self) -> Dict[str, Any]:
+        """Analyze polling accuracy vs actual results."""
+        if 'averages' not in self.data or self.data['averages'].empty:
+            return {}
+
+        df = self.data['averages']
+
+        error_col = 'POLLING_ERROR' if 'POLLING_ERROR' in df.columns else 'polling_error'
+        year_col = 'ELECTION_YEAR' if 'ELECTION_YEAR' in df.columns else 'election_year'
+
+        if error_col not in df.columns:
+            return {}
+
+        # Filter to final averages if available
+        period_col = 'PERIOD' if 'PERIOD' in df.columns else 'period'
+        if period_col in df.columns:
+            final_df = df[df[period_col].str.contains('Final', case=False, na=False)]
+            if final_df.empty:
+                final_df = df
+
+        errors = final_df[error_col].dropna()
+
+        stats = {
+            'overall': {
+                'mean_error': round(errors.mean(), 2),
+                'mean_absolute_error': round(errors.abs().mean(), 2),
+                'max_error': round(errors.max(), 2),
+                'min_error': round(errors.min(), 2),
+                'direction': 'Underestimated R margin' if errors.mean() > 0 else 'Overestimated R margin'
+            },
+            'by_year': {}
+        }
+
+        if year_col in df.columns:
+            for _, row in final_df.iterrows():
+                year = int(row[year_col])
+                stats['by_year'][year] = {
+                    'polling_error': round(row[error_col], 2) if pd.notna(row[error_col]) else None,
+                    'direction': 'Under R' if row[error_col] > 0 else 'Over R' if row[error_col] < 0 else 'Accurate'
+                }
+
+        return stats
+
+    def _pollster_analysis(self) -> Dict[str, Any]:
+        """Analyze pollster characteristics."""
+        if 'polls' not in self.data or self.data['polls'].empty:
+            return {}
+
+        df = self.data['polls']
+
+        pollster_col = 'POLLSTER' if 'POLLSTER' in df.columns else 'pollster'
+
+        pollster_counts = df[pollster_col].value_counts()
+
+        stats = {
+            'most_active_pollsters': pollster_counts.head(10).to_dict(),
+            'total_pollsters': int(df[pollster_col].nunique())
+        }
+
+        # Add pollster ratings if available
+        if 'pollsters' in self.data and not self.data['pollsters'].empty:
+            pollster_df = self.data['pollsters']
+            rating_col = 'FIVETHIRTYEIGHT_RATING' if 'FIVETHIRTYEIGHT_RATING' in pollster_df.columns else 'fivethirtyeight_rating'
+
+            if rating_col in pollster_df.columns:
+                rating_counts = pollster_df[rating_col].value_counts()
+                stats['rating_distribution'] = rating_counts.to_dict()
+
+        return stats
+
+    def _sample_size_analysis(self) -> Dict[str, Any]:
+        """Analyze poll sample sizes."""
+        if 'polls' not in self.data or self.data['polls'].empty:
+            return {}
+
+        df = self.data['polls']
+
+        sample_col = 'SAMPLE_SIZE' if 'SAMPLE_SIZE' in df.columns else 'sample_size'
+
+        if sample_col not in df.columns:
+            return {}
+
+        samples = df[sample_col].dropna()
+
+        stats = {
+            'summary': self.numeric_summary(samples),
+            'size_categories': {
+                'small (<500)': int((samples < 500).sum()),
+                'medium (500-1000)': int(((samples >= 500) & (samples < 1000)).sum()),
+                'large (1000+)': int((samples >= 1000).sum())
+            }
+        }
+
+        return stats
+
+    def _trend_analysis(self) -> Dict[str, Any]:
+        """Analyze polling trends."""
+        if 'trends' not in self.data or self.data['trends'].empty:
+            return {}
+
+        df = self.data['trends']
+
+        year_col = 'ELECTION_YEAR' if 'ELECTION_YEAR' in df.columns else 'election_year'
+        vol_col = 'VOLATILITY' if 'VOLATILITY' in df.columns else 'volatility'
+        trend_col = 'TREND_DIRECTION' if 'TREND_DIRECTION' in df.columns else 'trend_direction'
+
+        stats = {'by_year': {}}
+
+        for _, row in df.iterrows():
+            year = int(row[year_col])
+            stats['by_year'][year] = {
+                'initial_margin': row.get('INITIAL_MARGIN') or row.get('initial_margin'),
+                'final_margin': row.get('FINAL_MARGIN') or row.get('final_margin'),
+                'volatility': round(row[vol_col], 2) if pd.notna(row.get(vol_col)) else None,
+                'trend': row.get(trend_col) or row.get('trend_direction')
+            }
+
+        if vol_col in df.columns:
+            stats['volatility_summary'] = self.numeric_summary(df[vol_col].dropna())
+
+        return stats
+
+
+# =============================================================================
+# NEWS STATISTICS
+# =============================================================================
+class NewsStatistics(DescriptiveStatistics):
+    """
+    Descriptive statistics for news coverage data.
+    """
+
+    def __init__(self, db_manager: DatabaseManager = None, data: Dict[str, pd.DataFrame] = None):
+        """Initialize with database connection or pre-loaded data."""
+        self.db = db_manager
+        self.data = data or {}
+        self.results = {}
+
+    def load_data(self) -> None:
+        """Load news data from database."""
+        if self.db:
+            try:
+                self.data['articles'] = self.db.run_query("SELECT * FROM NEWS_ARTICLES")
+                self.data['coverage'] = self.db.run_query("SELECT * FROM NEWS_COVERAGE_SUMMARY")
+                self.data['by_topic'] = self.db.run_query("SELECT * FROM NEWS_BY_TOPIC")
+            except Exception as e:
+                logger.warning(f"Could not load from database: {e}")
+
+    def compute_all(self) -> Dict[str, Any]:
+        """Compute all news statistics."""
+        logger.info("Computing news coverage statistics...")
+
+        self.results = {
+            'coverage_summary': self._coverage_summary(),
+            'source_analysis': self._source_analysis(),
+            'topic_analysis': self._topic_analysis(),
+            'candidate_comparison': self._candidate_comparison(),
+            'scope_analysis': self._scope_analysis()
+        }
+
+        return self.results
+
+    def _coverage_summary(self) -> Dict[str, Any]:
+        """Compute overall coverage summary."""
+        if 'articles' not in self.data or self.data['articles'].empty:
+            return {}
+
+        df = self.data['articles']
+
+        year_col = 'ELECTION_YEAR' if 'ELECTION_YEAR' in df.columns else 'election_year'
+
+        stats = {
+            'total_articles': int(len(df)),
+            'by_year': {}
+        }
+
+        if year_col in df.columns:
+            for year in sorted(df[year_col].unique()):
+                year_df = df[df[year_col] == year]
+                stats['by_year'][int(year)] = {
+                    'articles': int(len(year_df)),
+                    'sources': int(year_df['SOURCE' if 'SOURCE' in df.columns else 'source'].nunique())
+                }
+
+        return stats
+
+    def _source_analysis(self) -> Dict[str, Any]:
+        """Analyze news sources."""
+        if 'articles' not in self.data or self.data['articles'].empty:
+            return {}
+
+        df = self.data['articles']
+
+        source_col = 'SOURCE' if 'SOURCE' in df.columns else 'source'
+
+        source_counts = df[source_col].value_counts()
+
+        stats = {
+            'source_distribution': source_counts.to_dict(),
+            'total_sources': int(df[source_col].nunique()),
+            'top_source': source_counts.index[0] if len(source_counts) > 0 else None,
+            'top_source_articles': int(source_counts.iloc[0]) if len(source_counts) > 0 else 0
+        }
+
+        return stats
+
+    def _topic_analysis(self) -> Dict[str, Any]:
+        """Analyze news topics."""
+        if 'articles' not in self.data or self.data['articles'].empty:
+            return {}
+
+        df = self.data['articles']
+
+        topic_col = 'TOPIC' if 'TOPIC' in df.columns else 'topic'
+
+        if topic_col not in df.columns:
+            return {}
+
+        topic_counts = df[topic_col].value_counts()
+
+        stats = {
+            'topic_distribution': topic_counts.to_dict(),
+            'total_topics': int(df[topic_col].nunique()),
+            'top_topics': topic_counts.head(5).to_dict()
+        }
+
+        return stats
+
+    def _candidate_comparison(self) -> Dict[str, Any]:
+        """Compare news coverage by candidate."""
+        if 'coverage' not in self.data or self.data['coverage'].empty:
+            return {}
+
+        df = self.data['coverage']
+
+        cand_col = 'CANDIDATE' if 'CANDIDATE' in df.columns else 'candidate'
+        articles_col = 'TOTAL_ARTICLES' if 'TOTAL_ARTICLES' in df.columns else 'total_articles'
+        year_col = 'ELECTION_YEAR' if 'ELECTION_YEAR' in df.columns else 'election_year'
+
+        stats = {'by_year': {}}
+
+        for year in sorted(df[year_col].unique()):
+            year_df = df[df[year_col] == year]
+            year_stats = {}
+
+            for _, row in year_df.iterrows():
+                candidate = row[cand_col]
+                year_stats[candidate] = {
+                    'articles': int(row[articles_col]) if pd.notna(row.get(articles_col)) else 0,
+                    'party': row.get('PARTY') or row.get('party')
+                }
+
+            # Calculate coverage ratio
+            candidates = list(year_stats.keys())
+            if len(candidates) == 2:
+                a1 = year_stats[candidates[0]].get('articles', 0)
+                a2 = year_stats[candidates[1]].get('articles', 0)
+                if a2 > 0:
+                    year_stats['coverage_ratio'] = round(a1 / a2, 2)
+
+            stats['by_year'][int(year)] = year_stats
+
+        return stats
+
+    def _scope_analysis(self) -> Dict[str, Any]:
+        """Analyze Texas vs National coverage."""
+        if 'articles' not in self.data or self.data['articles'].empty:
+            return {}
+
+        df = self.data['articles']
+
+        scope_col = 'SCOPE' if 'SCOPE' in df.columns else 'scope'
+
+        if scope_col not in df.columns:
+            return {}
+
+        scope_counts = df[scope_col].value_counts()
+
+        total = len(df)
+
+        stats = {
+            'scope_distribution': scope_counts.to_dict(),
+            'texas_coverage': int(scope_counts.get('Texas', 0)),
+            'national_coverage': int(scope_counts.get('National', 0)),
+            'texas_pct': round(scope_counts.get('Texas', 0) / total * 100, 1) if total > 0 else 0,
+            'national_pct': round(scope_counts.get('National', 0) / total * 100, 1) if total > 0 else 0
+        }
+
+        return stats
+
+
+# =============================================================================
+# CORRELATION ANALYSIS
+# =============================================================================
+class CorrelationAnalysis:
+    """
+    Cross-dataset correlation analysis.
+    """
+
+    def __init__(
+        self,
+        election_stats: ElectionStatistics,
+        finance_stats: CampaignFinanceStatistics,
+        polling_stats: PollingStatistics,
+        news_stats: NewsStatistics
+    ):
+        """Initialize with statistics objects."""
+        self.election = election_stats
+        self.finance = finance_stats
+        self.polling = polling_stats
+        self.news = news_stats
+        self.results = {}
+
+    def compute_all(self) -> Dict[str, Any]:
+        """Compute all cross-dataset correlations."""
+        logger.info("Computing cross-dataset correlations...")
+
+        self.results = {
+            'money_vs_votes': self._money_vs_votes(),
+            'polls_vs_results': self._polls_vs_results(),
+            'coverage_vs_results': self._coverage_vs_results(),
+            'integrated_summary': self._integrated_summary()
+        }
+
+        return self.results
+
+    def _money_vs_votes(self) -> Dict[str, Any]:
+        """Analyze correlation between fundraising and vote share."""
+        # This would require merged data from elections and finance
+        return {
+            'description': 'Correlation between campaign fundraising and vote percentage',
+            'note': 'Requires integrated dataset with matched election-finance records'
+        }
+
+    def _polls_vs_results(self) -> Dict[str, Any]:
+        """Analyze correlation between polling and actual results."""
+        if not self.polling.results.get('polling_accuracy'):
+            return {}
+
+        accuracy = self.polling.results['polling_accuracy']
+
+        return {
+            'mean_absolute_error': accuracy.get('overall', {}).get('mean_absolute_error'),
+            'systematic_bias': accuracy.get('overall', {}).get('direction'),
+            'by_year': accuracy.get('by_year', {})
+        }
+
+    def _coverage_vs_results(self) -> Dict[str, Any]:
+        """Analyze correlation between news coverage and results."""
+        return {
+            'description': 'Correlation between news coverage volume and election outcomes',
+            'note': 'Requires integrated dataset with matched election-news records'
+        }
+
+    def _integrated_summary(self) -> Dict[str, Any]:
+        """Create integrated summary across all datasets."""
+        summary = {
+            'election_cycles': [2010, 2014, 2018, 2022],
+            'by_cycle': {}
+        }
+
+        for year in [2010, 2014, 2018, 2022]:
+            cycle = {'year': year}
+
+            # Election data
+            if self.election.results.get('margin_statistics', {}).get('by_year', {}).get(year):
+                cycle['election'] = self.election.results['margin_statistics']['by_year'][year]
+
+            # Finance data
+            if self.finance.results.get('fundraising_statistics', {}).get('by_year', {}).get(year):
+                cycle['finance'] = self.finance.results['fundraising_statistics']['by_year'][year]
+
+            # Polling data
+            if self.polling.results.get('margin_statistics', {}).get('by_year', {}).get(year):
+                cycle['polling'] = self.polling.results['margin_statistics']['by_year'][year]
+
+            # News data
+            if self.news.results.get('coverage_summary', {}).get('by_year', {}).get(year):
+                cycle['news'] = self.news.results['coverage_summary']['by_year'][year]
+
+            summary['by_cycle'][year] = cycle
+
+        return summary
+
+
+# =============================================================================
+# STATISTICAL MODEL MANAGER
+# =============================================================================
+class StatisticalModelManager:
+    """
+    Manages all statistical analysis for Texas Governor race data.
+    """
+
+    def __init__(self, use_database: bool = True):
+        """
+        Initialize the Statistical Model Manager.
+
+        Args:
+            use_database: If True, load data from Snowflake; otherwise use ETL
+        """
+        self.use_database = use_database
+        self.db_manager = None
+
+        self.election_stats = None
+        self.finance_stats = None
+        self.polling_stats = None
+        self.news_stats = None
+        self.correlation_analysis = None
+
+        self.all_results = {}
+
+    def initialize(self) -> bool:
+        """Initialize data sources and statistics objects."""
+        if self.use_database:
+            return self._initialize_from_database()
+        else:
+            return self._initialize_from_etl()
+
+    def _initialize_from_database(self) -> bool:
+        """Initialize using Snowflake database."""
+        self.db_manager = DatabaseManager()
+
+        if not self.db_manager.connect():
+            logger.warning("Could not connect to database, falling back to ETL")
+            return self._initialize_from_etl()
+
+        self.election_stats = ElectionStatistics(db_manager=self.db_manager)
+        self.finance_stats = CampaignFinanceStatistics(db_manager=self.db_manager)
+        self.polling_stats = PollingStatistics(db_manager=self.db_manager)
+        self.news_stats = NewsStatistics(db_manager=self.db_manager)
+
+        # Load data from database
+        self.election_stats.load_data()
+        self.finance_stats.load_data()
+        self.polling_stats.load_data()
+        self.news_stats.load_data()
+
+        return True
+
+    def _initialize_from_etl(self) -> bool:
+        """Initialize using ETL pipeline data."""
+        logger.info("Loading data from ETL pipeline...")
+
+        pipeline = ETLPipeline()
+        pipeline.run(extract=True, transform=True, load=False)
+
+        transformed = pipeline.transformed_data
+
+        self.election_stats = ElectionStatistics(data={
+            'statewide': transformed.get('election_results'),
+            'historical': transformed.get('election_historical')
+        })
+
+        self.finance_stats = CampaignFinanceStatistics(data={
+            'summary': transformed.get('finance_summary'),
+            'expenditures': transformed.get('finance_expenditures')
+        })
+
+        self.polling_stats = PollingStatistics(data={
+            'polls': transformed.get('polls'),
+            'averages': transformed.get('poll_averages'),
+            'pollsters': transformed.get('pollsters'),
+            'trends': transformed.get('poll_trends')
+        })
+
+        self.news_stats = NewsStatistics(data={
+            'articles': transformed.get('news_articles'),
+            'coverage': transformed.get('news_coverage_summary'),
+            'by_topic': transformed.get('news_by_topic')
+        })
+
+        return True
+
+    def run_all_statistics(self) -> Dict[str, Any]:
+        """Run all statistical analyses."""
+        logger.info("=" * 60)
+        logger.info("RUNNING DESCRIPTIVE STATISTICS")
+        logger.info("=" * 60)
+
+        self.all_results['elections'] = self.election_stats.compute_all()
+        self.all_results['campaign_finance'] = self.finance_stats.compute_all()
+        self.all_results['polling'] = self.polling_stats.compute_all()
+        self.all_results['news'] = self.news_stats.compute_all()
+
+        # Cross-dataset correlations
+        self.correlation_analysis = CorrelationAnalysis(
+            self.election_stats,
+            self.finance_stats,
+            self.polling_stats,
+            self.news_stats
+        )
+        self.all_results['correlations'] = self.correlation_analysis.compute_all()
+
+        logger.info("=" * 60)
+        logger.info("STATISTICS COMPLETE")
+        logger.info("=" * 60)
+
+        return self.all_results
+
+    def print_summary(self) -> None:
+        """Print formatted summary of all statistics."""
+        print("\n" + "=" * 70)
+        print("TEXAS GOVERNOR RACE - DESCRIPTIVE STATISTICS SUMMARY")
+        print("=" * 70)
+
+        # Election Statistics
+        if 'elections' in self.all_results:
+            print("\n" + "-" * 50)
+            print("ELECTION STATISTICS")
+            print("-" * 50)
+
+            margin_stats = self.all_results['elections'].get('margin_statistics', {})
+            if margin_stats.get('competitiveness'):
+                comp = margin_stats['competitiveness']
+                print(f"  Average Victory Margin: {comp.get('avg_margin', 'N/A')}%")
+                print(f"  Closest Race: {comp.get('closest_race', {}).get('year', 'N/A')} "
+                      f"({comp.get('closest_race', {}).get('margin', 'N/A')}%)")
+                print(f"  Largest Margin: {comp.get('largest_margin', {}).get('year', 'N/A')} "
+                      f"({comp.get('largest_margin', {}).get('margin', 'N/A')}%)")
+
+            turnout = self.all_results['elections'].get('turnout_statistics', {})
+            if turnout.get('turnout_pct'):
+                print(f"  Average Turnout: {turnout['turnout_pct'].get('mean', 'N/A')}%")
+
+        # Campaign Finance Statistics
+        if 'campaign_finance' in self.all_results:
+            print("\n" + "-" * 50)
+            print("CAMPAIGN FINANCE STATISTICS")
+            print("-" * 50)
+
+            fundraising = self.all_results['campaign_finance'].get('fundraising_statistics', {})
+            if fundraising.get('overall'):
+                overall = fundraising['overall']
+                print(f"  Average Raised per Candidate: ${overall.get('mean', 0):,.0f}")
+                print(f"  Maximum Raised: ${overall.get('max', 0):,.0f}")
+
+            money_results = self.all_results['campaign_finance'].get('money_vs_results', {})
+            if money_results.get('money_win_rate'):
+                print(f"  Top Fundraiser Win Rate: {money_results['money_win_rate']}%")
+
+        # Polling Statistics
+        if 'polling' in self.all_results:
+            print("\n" + "-" * 50)
+            print("POLLING STATISTICS")
+            print("-" * 50)
+
+            poll_summary = self.all_results['polling'].get('poll_summary', {})
+            print(f"  Total Polls Analyzed: {poll_summary.get('total_polls', 'N/A')}")
+            print(f"  Unique Pollsters: {poll_summary.get('unique_pollsters', 'N/A')}")
+
+            accuracy = self.all_results['polling'].get('polling_accuracy', {})
+            if accuracy.get('overall'):
+                overall = accuracy['overall']
+                print(f"  Mean Absolute Error: {overall.get('mean_absolute_error', 'N/A')} points")
+                print(f"  Systematic Bias: {overall.get('direction', 'N/A')}")
+
+        # News Statistics
+        if 'news' in self.all_results:
+            print("\n" + "-" * 50)
+            print("NEWS COVERAGE STATISTICS")
+            print("-" * 50)
+
+            coverage = self.all_results['news'].get('coverage_summary', {})
+            print(f"  Total Articles: {coverage.get('total_articles', 'N/A')}")
+
+            scope = self.all_results['news'].get('scope_analysis', {})
+            if scope:
+                print(f"  Texas Coverage: {scope.get('texas_pct', 'N/A')}%")
+                print(f"  National Coverage: {scope.get('national_pct', 'N/A')}%")
+
+        print("\n" + "=" * 70)
+
+    def export_results(self, output_dir: str = OUTPUT_DIR) -> Dict[str, str]:
+        """
+        Export all results to files.
+
+        Args:
+            output_dir: Output directory
+
+        Returns:
+            Dictionary of output file paths
+        """
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        output_files = {}
+
+        # Export JSON
+        json_file = output_path / 'descriptive_statistics.json'
+        with open(json_file, 'w') as f:
+            json.dump(self.all_results, f, indent=2, default=str)
+        output_files['json'] = str(json_file)
+        logger.info(f"Exported JSON: {json_file}")
+
+        # Export summary report
+        report_file = output_path / 'statistics_report.txt'
+        with open(report_file, 'w') as f:
+            f.write("TEXAS GOVERNOR RACE - DESCRIPTIVE STATISTICS REPORT\n")
+            f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write("=" * 70 + "\n\n")
+
+            for category, stats in self.all_results.items():
+                f.write(f"\n{category.upper()}\n")
+                f.write("-" * 50 + "\n")
+                f.write(json.dumps(stats, indent=2, default=str))
+                f.write("\n")
+
+        output_files['report'] = str(report_file)
+        logger.info(f"Exported report: {report_file}")
+
+        return output_files
+
+    def cleanup(self) -> None:
+        """Clean up resources."""
+        if self.db_manager:
+            self.db_manager.disconnect()
+
+
+# =============================================================================
+# MAIN
+# =============================================================================
+def main():
+    """Main entry point for statistical analysis."""
+    parser = argparse.ArgumentParser(
+        description='Descriptive Statistics for Texas Governor Race Data'
+    )
+
+    parser.add_argument(
+        '--summary', '-s',
+        action='store_true',
+        help='Run all summary statistics'
+    )
+    parser.add_argument(
+        '--elections', '-e',
+        action='store_true',
+        help='Run election statistics only'
+    )
+    parser.add_argument(
+        '--finance', '-f',
+        action='store_true',
+        help='Run campaign finance statistics only'
+    )
+    parser.add_argument(
+        '--polling', '-p',
+        action='store_true',
+        help='Run polling statistics only'
+    )
+    parser.add_argument(
+        '--news', '-n',
+        action='store_true',
+        help='Run news coverage statistics only'
+    )
+    parser.add_argument(
+        '--correlations', '-c',
+        action='store_true',
+        help='Run cross-dataset correlation analysis'
+    )
+    parser.add_argument(
+        '--export',
+        action='store_true',
+        help='Export results to files'
+    )
+    parser.add_argument(
+        '--output-dir',
+        default=OUTPUT_DIR,
+        help=f'Output directory (default: {OUTPUT_DIR})'
+    )
+    parser.add_argument(
+        '--use-etl',
+        action='store_true',
+        help='Use ETL pipeline instead of database'
+    )
+    parser.add_argument(
+        '--print-json',
+        action='store_true',
+        help='Print results as JSON'
+    )
+
+    args = parser.parse_args()
+
+    # Default to summary if no specific option selected
+    if not any([args.summary, args.elections, args.finance, args.polling, args.news, args.correlations]):
+        args.summary = True
+
+    # Initialize manager
+    manager = StatisticalModelManager(use_database=not args.use_etl)
+
+    if not manager.initialize():
+        logger.error("Failed to initialize data sources")
+        sys.exit(1)
+
+    try:
+        results = {}
+
+        if args.summary:
+            results = manager.run_all_statistics()
+            manager.print_summary()
+
+        else:
+            if args.elections:
+                results['elections'] = manager.election_stats.compute_all()
+
+            if args.finance:
+                results['campaign_finance'] = manager.finance_stats.compute_all()
+
+            if args.polling:
+                results['polling'] = manager.polling_stats.compute_all()
+
+            if args.news:
+                results['news'] = manager.news_stats.compute_all()
+
+            if args.correlations:
+                manager.run_all_statistics()  # Need all stats for correlations
+                results['correlations'] = manager.all_results.get('correlations', {})
+
+        if args.print_json:
+            print(json.dumps(results, indent=2, default=str))
+
+        if args.export:
+            manager.all_results = results
+            output_files = manager.export_results(args.output_dir)
+            print(f"\nResults exported to: {args.output_dir}")
+
+    finally:
+        manager.cleanup()
+
+
+if __name__ == "__main__":
+    main()
