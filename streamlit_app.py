@@ -452,7 +452,7 @@ def render_sidebar():
 
 def generate_executive_report_pdf(manager):
     """Generate a comprehensive executive report as PDF."""
-    from weasyprint import HTML
+    from fpdf import FPDF
     import io
 
     # Get all data
@@ -474,666 +474,315 @@ def generate_executive_report_pdf(manager):
 
     report_date = datetime.now().strftime('%B %d, %Y')
 
-    html_report = f'''
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Texas Governor Race Analysis - Executive Report</title>
-    <style>
-        @page {{
-            size: letter;
-            margin: 1in;
-        }}
-        body {{
-            font-family: Georgia, 'Times New Roman', serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            color: #1a1a1a;
-            line-height: 1.7;
-            font-size: 11pt;
-        }}
-        .cover {{
-            text-align: center;
-            padding: 60px 0;
-            border-bottom: 3px double #1a365d;
-            margin-bottom: 40px;
-            page-break-after: always;
-        }}
-        .cover h1 {{
-            color: #1a365d;
-            font-size: 28pt;
-            margin-bottom: 10px;
-            letter-spacing: 1px;
-        }}
-        .cover .subtitle {{
-            color: #444;
-            font-size: 16pt;
-            font-style: italic;
-            margin-bottom: 30px;
-        }}
-        .cover .date {{
-            color: #666;
-            font-size: 12pt;
-            margin-top: 40px;
-        }}
-        .cover .confidential {{
-            color: #c53030;
-            font-size: 10pt;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-top: 60px;
-        }}
-        h2 {{
-            color: #1a365d;
-            font-size: 16pt;
-            border-bottom: 2px solid #1a365d;
-            padding-bottom: 8px;
-            margin-top: 35px;
-            margin-bottom: 20px;
-        }}
-        h3 {{
-            color: #2d3748;
-            font-size: 13pt;
-            margin-top: 25px;
-            margin-bottom: 12px;
-        }}
-        p {{
-            text-align: justify;
-            margin-bottom: 14px;
-        }}
-        .prediction-box {{
-            background: #1a365d;
-            color: white;
-            padding: 25px;
-            text-align: center;
-            margin: 25px 0;
-        }}
-        .prediction-box .winner {{
-            font-size: 18pt;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }}
-        .prediction-box .details {{
-            font-size: 11pt;
-        }}
-        .highlight {{
-            background: #fffbeb;
-            border-left: 4px solid #d69e2e;
-            padding: 15px 20px;
-            margin: 20px 0;
-            font-style: italic;
-        }}
-        .metrics-row {{
-            display: flex;
-            justify-content: space-between;
-            margin: 25px 0;
-            text-align: center;
-        }}
-        .metric {{
-            flex: 1;
-            padding: 15px;
-            background: #f7fafc;
-            margin: 0 5px;
-            border-top: 3px solid #1a365d;
-        }}
-        .metric .value {{
-            font-size: 24pt;
-            font-weight: bold;
-            color: #1a365d;
-        }}
-        .metric .label {{
-            font-size: 9pt;
-            color: #666;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            font-size: 10pt;
-        }}
-        th {{
-            background: #1a365d;
-            color: white;
-            padding: 10px;
-            text-align: left;
-            font-weight: normal;
-        }}
-        td {{
-            padding: 10px;
-            border-bottom: 1px solid #e2e8f0;
-        }}
-        tr:nth-child(even) {{
-            background: #f7fafc;
-        }}
-        .republican {{ color: #c53030; font-weight: bold; }}
-        .democrat {{ color: #2b6cb0; font-weight: bold; }}
-        .section {{
-            margin-bottom: 30px;
-        }}
-        .page-break {{
-            page-break-before: always;
-        }}
-        .toc {{
-            margin: 30px 0;
-        }}
-        .toc-item {{
-            padding: 8px 0;
-            border-bottom: 1px dotted #ccc;
-        }}
-        .footer {{
-            text-align: center;
-            font-size: 9pt;
-            color: #888;
-            margin-top: 50px;
-            padding-top: 20px;
-            border-top: 1px solid #e2e8f0;
-        }}
-        .narrative {{
-            font-size: 11pt;
-            line-height: 1.8;
-        }}
-        blockquote {{
-            border-left: 3px solid #1a365d;
-            margin: 20px 0;
-            padding-left: 20px;
-            font-style: italic;
-            color: #555;
-        }}
-    </style>
-</head>
-<body>
-    <div class="cover">
-        <h1>TEXAS GOVERNOR RACE<br>ANALYSIS</h1>
-        <div class="subtitle">Executive Report & 2026 Election Forecast</div>
-        <div class="date">
-            Prepared: {report_date}<br>
-            Analysis Period: 2010-2026
-        </div>
-        <div class="confidential">Confidential - For Internal Use Only</div>
-    </div>
+    # Create PDF
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=25)
 
-    <h2>Table of Contents</h2>
-    <div class="toc">
-        <div class="toc-item">1. Executive Summary</div>
-        <div class="toc-item">2. 2026 Election Forecast</div>
-        <div class="toc-item">3. The Candidates</div>
-        <div class="toc-item">4. Historical Analysis (2010-2022)</div>
-        <div class="toc-item">5. Key Factors & Market Conditions</div>
-        <div class="toc-item">6. Methodology & Data Sources</div>
-        <div class="toc-item">7. Conclusions & Implications</div>
-    </div>
+    # Cover Page
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 32)
+    pdf.ln(60)
+    pdf.cell(0, 15, 'TEXAS GOVERNOR RACE', align='C', ln=True)
+    pdf.cell(0, 15, 'ANALYSIS', align='C', ln=True)
+    pdf.ln(10)
+    pdf.set_font('Helvetica', 'I', 16)
+    pdf.cell(0, 10, 'Executive Report & 2026 Election Forecast', align='C', ln=True)
+    pdf.ln(20)
+    pdf.set_font('Helvetica', '', 12)
+    pdf.cell(0, 8, f'Prepared: {report_date}', align='C', ln=True)
+    pdf.cell(0, 8, 'Analysis Period: 2010-2026', align='C', ln=True)
+    pdf.ln(30)
+    pdf.set_font('Helvetica', 'B', 10)
+    pdf.set_text_color(180, 0, 0)
+    pdf.cell(0, 8, 'CONFIDENTIAL - FOR INTERNAL USE ONLY', align='C', ln=True)
+    pdf.set_text_color(0, 0, 0)
 
-    <div class="page-break"></div>
+    # Table of Contents
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 18)
+    pdf.cell(0, 12, 'Table of Contents', ln=True)
+    pdf.ln(10)
+    pdf.set_font('Helvetica', '', 12)
+    toc_items = [
+        '1. Executive Summary',
+        '2. 2026 Election Forecast',
+        '3. The Candidates',
+        '4. Historical Analysis (2010-2022)',
+        '5. Key Factors & Market Conditions',
+        '6. Methodology & Data Sources',
+        '7. Conclusions & Implications'
+    ]
+    for item in toc_items:
+        pdf.cell(0, 10, item, ln=True)
 
-    <h2>1. Executive Summary</h2>
-    <div class="section narrative">
-        <p>
-            The 2026 Texas gubernatorial election presents a stark asymmetry rarely seen in modern American politics.
-            Incumbent Republican Governor Greg Abbott, seeking an unprecedented fourth term, enters the race with
-            structural advantages that make his reelection virtually certain absent a major unforeseen disruption.
-        </p>
-        <p>
-            Our comprehensive analysis—incorporating historical election data, campaign finance records, polling trends,
-            economic indicators, and machine learning-based sentiment analysis—projects Abbott will defeat likely
-            Democratic nominee State Representative Gina Hinojosa by a margin of <strong>12-18 percentage points</strong>,
-            securing approximately 59% of the vote compared to Hinojosa's 39%.
-        </p>
+    # Section 1: Executive Summary
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 18)
+    pdf.cell(0, 12, '1. Executive Summary', ln=True)
+    pdf.ln(5)
+    pdf.set_font('Helvetica', '', 11)
 
-        <div class="prediction-box">
-            <div class="winner">GREG ABBOTT (R) DEFEATS GINA HINOJOSA (D)</div>
-            <div class="details">
-                Predicted Margin: R+12-18% &nbsp;|&nbsp; Win Probability: 99%+ &nbsp;|&nbsp; Confidence: Very High
-            </div>
-        </div>
+    summary_text = """The 2026 Texas gubernatorial election presents a stark asymmetry rarely seen in modern American politics. Incumbent Republican Governor Greg Abbott, seeking an unprecedented fourth term, enters the race with structural advantages that make his reelection virtually certain absent a major unforeseen disruption.
 
-        <p>
-            Three factors dominate this forecast: First, Abbott commands an <strong>81-to-1 fundraising advantage</strong>—$105.7 million
-            versus Hinojosa's $1.3 million—the largest disparity in modern Texas gubernatorial history. Second, Texas
-            has not elected a Democrat to statewide office in over three decades, representing a 32-year Republican
-            winning streak. Third, current economic conditions—low market volatility (VIX at 15.4), stable unemployment
-            (4.5%), and moderate inflation (2.8%)—historically favor incumbents.
-        </p>
+Our comprehensive analysis--incorporating historical election data, campaign finance records, polling trends, economic indicators, and machine learning-based sentiment analysis--projects Abbott will defeat likely Democratic nominee State Representative Gina Hinojosa by a margin of 12-18 percentage points, securing approximately 59% of the vote compared to Hinojosa's 39%."""
+    pdf.multi_cell(0, 6, summary_text)
+    pdf.ln(8)
 
-        <div class="highlight">
-            <strong>Bottom Line:</strong> Barring an extraordinary "black swan" event, Greg Abbott will become the
-            longest-serving Governor in Texas history, surpassing Rick Perry's 14-year tenure by completing a fourth
-            term through January 2031.
-        </div>
-    </div>
+    # Prediction Box
+    pdf.set_fill_color(26, 54, 93)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.cell(0, 12, 'GREG ABBOTT (R) DEFEATS GINA HINOJOSA (D)', align='C', fill=True, ln=True)
+    pdf.set_font('Helvetica', '', 10)
+    pdf.cell(0, 10, 'Predicted Margin: R+12-18%  |  Win Probability: 99%+  |  Confidence: Very High', align='C', fill=True, ln=True)
+    pdf.set_text_color(0, 0, 0)
+    pdf.ln(8)
 
-    <div class="page-break"></div>
+    pdf.set_font('Helvetica', '', 11)
+    factors_text = """Three factors dominate this forecast: First, Abbott commands an 81-to-1 fundraising advantage--$105.7 million versus Hinojosa's $1.3 million--the largest disparity in modern Texas gubernatorial history. Second, Texas has not elected a Democrat to statewide office in over three decades, representing a 32-year Republican winning streak. Third, current economic conditions--low market volatility (VIX at 15.4), stable unemployment (4.5%), and moderate inflation (2.8%)--historically favor incumbents.
 
-    <h2>2. 2026 Election Forecast</h2>
-    <div class="section narrative">
-        <h3>Primary Elections — March 3, 2026</h3>
-        <p>
-            Both party primaries are expected to conclude without runoffs, though with markedly different dynamics.
-        </p>
-        <p>
-            <strong>Republican Primary:</strong> Governor Abbott faces only token opposition. His nearest challengers—State
-            Board of Education member Evelyn Brooks and tech executive Mark Goloby—lack the name recognition, funding,
-            or organizational capacity to mount credible campaigns. We project Abbott will capture 85-90% of the Republican
-            primary vote, avoiding any runoff and conserving resources for the general election.
-        </p>
-        <p>
-            <strong>Democratic Primary:</strong> State Representative Gina Hinojosa has consolidated establishment support
-            following Andrew White's withdrawal and endorsement. Her strongest remaining challenger, former Congressman
-            Chris Bell (the 2006 Democratic nominee), brings name recognition but minimal fundraising. We project Hinojosa
-            wins with 52-58% of the vote, likely avoiding a May 26 runoff, though this outcome is less certain than Abbott's.
-        </p>
+Bottom Line: Barring an extraordinary "black swan" event, Greg Abbott will become the longest-serving Governor in Texas history, surpassing Rick Perry's 14-year tenure by completing a fourth term through January 2031."""
+    pdf.multi_cell(0, 6, factors_text)
 
-        <table>
-            <tr>
-                <th colspan="2">Republican Primary Projection</th>
-                <th colspan="2">Democratic Primary Projection</th>
-            </tr>
-            <tr>
-                <td><strong>Greg Abbott</strong></td>
-                <td class="republican">85-90%</td>
-                <td><strong>Gina Hinojosa</strong></td>
-                <td class="democrat">52-58%</td>
-            </tr>
-            <tr>
-                <td>Evelyn Brooks</td>
-                <td>3%</td>
-                <td>Chris Bell</td>
-                <td>12-15%</td>
-            </tr>
-            <tr>
-                <td>Mark Goloby</td>
-                <td>2%</td>
-                <td>Bobby Cole</td>
-                <td>8-10%</td>
-            </tr>
-            <tr>
-                <td>Others</td>
-                <td>5-10%</td>
-                <td>Others</td>
-                <td>5-8%</td>
-            </tr>
-        </table>
+    # Section 2: 2026 Election Forecast
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 18)
+    pdf.cell(0, 12, '2. 2026 Election Forecast', ln=True)
+    pdf.ln(5)
 
-        <h3>General Election — November 3, 2026</h3>
-        <p>
-            The general election matchup between Abbott and Hinojosa presents Democrats with their most challenging
-            landscape since at least 2014. Unlike 2022, when Beto O'Rourke's $80 million campaign and national profile
-            created genuine competitive dynamics, Hinojosa enters the race as a relatively unknown state legislator
-            with minimal statewide infrastructure.
-        </p>
-        <p>
-            Current polling from Emerson College (January 2026) shows Abbott leading 50% to 42%, with 8% undecided.
-            Historically, undecided voters in Texas gubernatorial races break slightly toward the incumbent, suggesting
-            Abbott's final margin will likely exceed current polling spreads.
-        </p>
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.cell(0, 10, 'Primary Elections - March 3, 2026', ln=True)
+    pdf.set_font('Helvetica', '', 11)
+    primary_text = """Both party primaries are expected to conclude without runoffs, though with markedly different dynamics.
 
-        <div class="metrics-row">
-            <div class="metric">
-                <div class="value">59%</div>
-                <div class="label">Abbott Projected</div>
-            </div>
-            <div class="metric">
-                <div class="value">39%</div>
-                <div class="label">Hinojosa Projected</div>
-            </div>
-            <div class="metric">
-                <div class="value">2%</div>
-                <div class="label">Third Party/Other</div>
-            </div>
-        </div>
-    </div>
+Republican Primary: Governor Abbott faces only token opposition. His nearest challengers--State Board of Education member Evelyn Brooks and tech executive Mark Goloby--lack the name recognition, funding, or organizational capacity to mount credible campaigns. We project Abbott will capture 85-90% of the Republican primary vote.
 
-    <div class="page-break"></div>
+Democratic Primary: State Representative Gina Hinojosa has consolidated establishment support following Andrew White's withdrawal and endorsement. Her strongest remaining challenger, former Congressman Chris Bell (the 2006 Democratic nominee), brings name recognition but minimal fundraising. We project Hinojosa wins with 52-58% of the vote."""
+    pdf.multi_cell(0, 6, primary_text)
+    pdf.ln(8)
 
-    <h2>3. The Candidates</h2>
-    <div class="section narrative">
-        <h3>Greg Abbott (Republican, Incumbent)</h3>
-        <p>
-            Gregory Wayne Abbott, 68, has served as Texas Governor since January 2015, previously serving as
-            Texas Attorney General (2002-2015) and on the Texas Supreme Court (1996-2001). A wheelchair user
-            since a 1984 accident, Abbott has built his political identity around conservative priorities:
-            border security, business-friendly economic policies, and opposition to federal overreach.
-        </p>
-        <p>
-            Abbott's tenure has been marked by aggressive confrontations with the Biden administration over
-            immigration policy, including the deployment of National Guard troops to the Texas-Mexico border
-            under "Operation Lone Star." His administration has also championed restrictive abortion legislation,
-            constitutional carry gun laws, and education savings account programs opposed by public school advocates.
-        </p>
-        <p>
-            Critically, Abbott enters 2026 with <strong>$105.7 million in campaign funds</strong>—more than any
-            gubernatorial candidate in American history. His donor base includes virtually every major Texas
-            corporate interest, Republican mega-donors, and small-dollar contributors from all 254 Texas counties.
-            This financial dominance enables a saturation advertising strategy that Democratic opponents simply
-            cannot match.
-        </p>
+    # Primary Results Table
+    pdf.set_font('Helvetica', 'B', 10)
+    pdf.set_fill_color(26, 54, 93)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(95, 8, 'Republican Primary', border=1, fill=True, align='C')
+    pdf.cell(95, 8, 'Democratic Primary', border=1, fill=True, align='C', ln=True)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font('Helvetica', '', 10)
+    pdf.cell(70, 7, 'Greg Abbott', border=1)
+    pdf.cell(25, 7, '85-90%', border=1, align='C')
+    pdf.cell(70, 7, 'Gina Hinojosa', border=1)
+    pdf.cell(25, 7, '52-58%', border=1, align='C', ln=True)
+    pdf.cell(70, 7, 'Evelyn Brooks', border=1)
+    pdf.cell(25, 7, '3%', border=1, align='C')
+    pdf.cell(70, 7, 'Chris Bell', border=1)
+    pdf.cell(25, 7, '12-15%', border=1, align='C', ln=True)
+    pdf.cell(70, 7, 'Mark Goloby', border=1)
+    pdf.cell(25, 7, '2%', border=1, align='C')
+    pdf.cell(70, 7, 'Bobby Cole', border=1)
+    pdf.cell(25, 7, '8-10%', border=1, align='C', ln=True)
+    pdf.ln(8)
 
-        <h3>Gina Hinojosa (Democrat, Challenger)</h3>
-        <p>
-            Regina "Gina" Hinojosa, 54, has represented Texas House District 49 (Austin) since 2017. The daughter
-            of former Texas Democratic Party Chair Gilberto Hinojosa, she previously served as Austin ISD Board
-            President, building her profile around public education advocacy.
-        </p>
-        <p>
-            Hinojosa launched her gubernatorial campaign in October 2025, positioning herself as a champion of
-            public schools against Abbott's voucher initiatives. Her messaging emphasizes abortion rights,
-            healthcare access, and opposition to Abbott's border policies. However, her campaign faces
-            existential resource constraints.
-        </p>
-        <p>
-            With just <strong>$1.3 million raised</strong> (average donation under $50) and $661,000 cash on hand,
-            Hinojosa cannot compete with Abbott on television advertising, field operations, or voter contact.
-            Her campaign acknowledges relying on earned media, grassroots organizing, and potential national
-            Democratic support that has not yet materialized.
-        </p>
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.cell(0, 10, 'General Election - November 3, 2026', ln=True)
+    pdf.set_font('Helvetica', '', 11)
+    general_text = """The general election matchup between Abbott and Hinojosa presents Democrats with their most challenging landscape since at least 2014. Unlike 2022, when Beto O'Rourke's $80 million campaign and national profile created genuine competitive dynamics, Hinojosa enters the race as a relatively unknown state legislator with minimal statewide infrastructure.
 
-        <blockquote>
-            "This isn't just about money—it's about whether Democrats can build a long-term infrastructure
-            in Texas. We're planting seeds for 2030 and beyond." — Hinojosa campaign advisor
-        </blockquote>
-    </div>
+Current polling from Emerson College (January 2026) shows Abbott leading 50% to 42%, with 8% undecided. Historically, undecided voters in Texas gubernatorial races break slightly toward the incumbent.
 
-    <div class="page-break"></div>
+Projected Results: Abbott 59% | Hinojosa 39% | Other 2%"""
+    pdf.multi_cell(0, 6, general_text)
 
-    <h2>4. Historical Analysis (2010-2022)</h2>
-    <div class="section narrative">
-        <p>
-            Understanding Texas's gubernatorial landscape requires examining the consistent Republican dominance
-            that has characterized the past three decades. Since Ann Richards' defeat in 1994, no Democrat has
-            won statewide office in Texas—a 32-year drought unprecedented among major American states.
-        </p>
+    # Section 3: The Candidates
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 18)
+    pdf.cell(0, 12, '3. The Candidates', ln=True)
+    pdf.ln(5)
 
-        <table>
-            <tr>
-                <th>Year</th>
-                <th>Republican</th>
-                <th>Democrat</th>
-                <th>R Funds</th>
-                <th>D Funds</th>
-                <th>Margin</th>
-            </tr>
-            <tr>
-                <td>2010</td>
-                <td class="republican">Rick Perry ✓</td>
-                <td class="democrat">Bill White</td>
-                <td>$42M</td>
-                <td>$28M</td>
-                <td>R+12.7%</td>
-            </tr>
-            <tr>
-                <td>2014</td>
-                <td class="republican">Greg Abbott ✓</td>
-                <td class="democrat">Wendy Davis</td>
-                <td>$48M</td>
-                <td>$42M</td>
-                <td>R+20.4%</td>
-            </tr>
-            <tr>
-                <td>2018</td>
-                <td class="republican">Greg Abbott ✓</td>
-                <td class="democrat">Lupe Valdez</td>
-                <td>$46M</td>
-                <td>$4.5M</td>
-                <td>R+13.3%</td>
-            </tr>
-            <tr>
-                <td>2022</td>
-                <td class="republican">Greg Abbott ✓</td>
-                <td class="democrat">Beto O'Rourke</td>
-                <td>$75M</td>
-                <td>$80M</td>
-                <td>R+11.1%</td>
-            </tr>
-            <tr style="background: #e6f3ff;">
-                <td><strong>2026*</strong></td>
-                <td class="republican"><strong>Greg Abbott ✓</strong></td>
-                <td class="democrat"><strong>Gina Hinojosa</strong></td>
-                <td><strong>$106M</strong></td>
-                <td><strong>$1.3M</strong></td>
-                <td><strong>R+12-18%</strong></td>
-            </tr>
-        </table>
-        <p style="font-size: 9pt; color: #666;">*2026 figures are projections based on current data as of January 2026</p>
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.cell(0, 10, 'Greg Abbott (Republican, Incumbent)', ln=True)
+    pdf.set_font('Helvetica', '', 11)
+    abbott_text = """Gregory Wayne Abbott, 68, has served as Texas Governor since January 2015, previously serving as Texas Attorney General (2002-2015) and on the Texas Supreme Court (1996-2001). A wheelchair user since a 1984 accident, Abbott has built his political identity around conservative priorities: border security, business-friendly economic policies, and opposition to federal overreach.
 
-        <h3>Key Historical Patterns</h3>
-        <p>
-            <strong>Money Matters—Usually:</strong> In three of four recent cycles, the top fundraiser won. The exception—2022—is
-            instructive: despite O'Rourke's $80 million matching Abbott's resources, structural Republican advantages
-            in Texas still produced an 11-point GOP victory. When financial parity cannot overcome partisan gravity,
-            an 81:1 funding disparity makes the outcome essentially predetermined.
-        </p>
-        <p>
-            <strong>Polling Has Been Reliable:</strong> Texas gubernatorial polls have shown a mean absolute error of
-            approximately {polling_error} points, with a slight {polling_bias}. Current polling showing Abbott +8
-            likely underestimates his final margin, as incumbents typically consolidate undecided voters.
-        </p>
-        <p>
-            <strong>Democratic "Waves" Don't Reach Texas:</strong> Even in favorable national environments (2018, 2020),
-            Democratic gubernatorial candidates have failed to crack the 45% threshold. Texas's unique demographic
-            composition, low voter turnout patterns, and Republican organizational advantages have proven resistant
-            to national trends.
-        </p>
+Abbott's tenure has been marked by aggressive confrontations with the Biden administration over immigration policy, including the deployment of National Guard troops to the Texas-Mexico border under "Operation Lone Star."
 
-        <div class="metrics-row">
-            <div class="metric">
-                <div class="value">{avg_margin}%</div>
-                <div class="label">Avg R Margin</div>
-            </div>
-            <div class="metric">
-                <div class="value">{money_win_rate}%</div>
-                <div class="label">Top Fundraiser Wins</div>
-            </div>
-            <div class="metric">
-                <div class="value">32</div>
-                <div class="label">Years Since D Win</div>
-            </div>
-        </div>
-    </div>
+Critically, Abbott enters 2026 with $105.7 million in campaign funds--more than any gubernatorial candidate in American history. His donor base includes virtually every major Texas corporate interest, Republican mega-donors, and small-dollar contributors from all 254 Texas counties."""
+    pdf.multi_cell(0, 6, abbott_text)
+    pdf.ln(5)
 
-    <div class="page-break"></div>
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.cell(0, 10, 'Gina Hinojosa (Democrat, Challenger)', ln=True)
+    pdf.set_font('Helvetica', '', 11)
+    hinojosa_text = """Regina "Gina" Hinojosa, 54, has represented Texas House District 49 (Austin) since 2017. The daughter of former Texas Democratic Party Chair Gilberto Hinojosa, she previously served as Austin ISD Board President, building her profile around public education advocacy.
 
-    <h2>5. Key Factors & Market Conditions</h2>
-    <div class="section narrative">
-        <p>
-            Our predictive model incorporates multiple data streams beyond traditional political metrics.
-            Economic conditions, market sentiment, and news coverage all contribute to electoral outcomes
-            in measurable ways.
-        </p>
+Hinojosa launched her gubernatorial campaign in October 2025, positioning herself as a champion of public schools against Abbott's voucher initiatives. Her messaging emphasizes abortion rights, healthcare access, and opposition to Abbott's border policies.
 
-        <h3>Economic Environment</h3>
-        <table>
-            <tr>
-                <th>Indicator</th>
-                <th>Current Value</th>
-                <th>Political Implication</th>
-            </tr>
-            <tr>
-                <td>Unemployment Rate</td>
-                <td>4.5%</td>
-                <td>Neutral — stable labor market benefits incumbent</td>
-            </tr>
-            <tr>
-                <td>CPI Inflation (YoY)</td>
-                <td>2.8%</td>
-                <td>Slight headwind — elevated but moderating</td>
-            </tr>
-            <tr>
-                <td>GDP Growth</td>
-                <td>2.2%</td>
-                <td>Positive — solid economic expansion</td>
-            </tr>
-            <tr>
-                <td>VIX Volatility Index</td>
-                <td>15.4</td>
-                <td>Favorable — low uncertainty benefits status quo</td>
-            </tr>
-            <tr>
-                <td>Federal Funds Rate</td>
-                <td>4.25-4.50%</td>
-                <td>Neutral — easing cycle underway</td>
-            </tr>
-        </table>
+With just $1.3 million raised (average donation under $50) and $661,000 cash on hand, Hinojosa cannot compete with Abbott on television advertising, field operations, or voter contact."""
+    pdf.multi_cell(0, 6, hinojosa_text)
 
-        <p>
-            The VIX reading of 15.4 is particularly significant. Academic research consistently shows that
-            low market volatility correlates with incumbent electoral success—voters are less inclined to
-            seek change when economic uncertainty is minimal. Combined with solid GDP growth and manageable
-            (if elevated) inflation, the macroeconomic backdrop offers Abbott no significant vulnerabilities.
-        </p>
+    # Section 4: Historical Analysis
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 18)
+    pdf.cell(0, 12, '4. Historical Analysis (2010-2022)', ln=True)
+    pdf.ln(5)
+    pdf.set_font('Helvetica', '', 11)
+    history_intro = """Understanding Texas's gubernatorial landscape requires examining the consistent Republican dominance that has characterized the past three decades. Since Ann Richards' defeat in 1994, no Democrat has won statewide office in Texas--a 32-year drought unprecedented among major American states."""
+    pdf.multi_cell(0, 6, history_intro)
+    pdf.ln(5)
 
-        <h3>Campaign Finance Disparity</h3>
-        <p>
-            The 81:1 fundraising ratio between Abbott ($105.7M) and Hinojosa ($1.3M) deserves particular emphasis.
-            This disparity exceeds any previous Texas gubernatorial race and ranks among the most lopsided
-            financial matchups in American political history.
-        </p>
-        <p>
-            In practical terms, this means Abbott can:
-        </p>
-        <ul>
-            <li>Saturate Texas television markets with advertising through Election Day</li>
-            <li>Maintain paid field operations in all 254 counties</li>
-            <li>Fund sophisticated voter targeting and turnout programs</li>
-            <li>Respond instantly to any attack or emerging issue</li>
-        </ul>
-        <p>
-            Hinojosa, by contrast, will struggle to achieve meaningful television presence outside the final
-            weeks, cannot fund significant field operations, and must rely on earned media coverage that
-            inherently favors the incumbent.
-        </p>
+    # Historical Results Table
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.set_fill_color(26, 54, 93)
+    pdf.set_text_color(255, 255, 255)
+    headers = ['Year', 'Republican', 'Democrat', 'R Funds', 'D Funds', 'Margin']
+    widths = [20, 45, 45, 25, 25, 30]
+    for i, h in enumerate(headers):
+        pdf.cell(widths[i], 8, h, border=1, fill=True, align='C')
+    pdf.ln()
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font('Helvetica', '', 9)
 
-        <h3>News Sentiment Analysis</h3>
-        <p>
-            Our FinBERT-based sentiment analysis of campaign coverage reveals relatively neutral overall
-            coverage, with Abbott receiving slightly more positive treatment in business-focused outlets
-            and Hinojosa generating more favorable coverage in education and women's issue contexts.
-            Neither candidate faces sustained negative narrative pressure.
-        </p>
-    </div>
+    results = [
+        ['2010', 'Rick Perry', 'Bill White', '$42M', '$28M', 'R+12.7%'],
+        ['2014', 'Greg Abbott', 'Wendy Davis', '$48M', '$42M', 'R+20.4%'],
+        ['2018', 'Greg Abbott', 'Lupe Valdez', '$46M', '$4.5M', 'R+13.3%'],
+        ['2022', 'Greg Abbott', 'Beto O\'Rourke', '$75M', '$80M', 'R+11.1%'],
+        ['2026*', 'Greg Abbott', 'Gina Hinojosa', '$106M', '$1.3M', 'R+12-18%'],
+    ]
+    for row in results:
+        for i, cell in enumerate(row):
+            pdf.cell(widths[i], 7, cell, border=1, align='C')
+        pdf.ln()
+    pdf.set_font('Helvetica', 'I', 8)
+    pdf.cell(0, 6, '*2026 figures are projections based on current data', ln=True)
+    pdf.ln(5)
 
-    <div class="page-break"></div>
+    pdf.set_font('Helvetica', '', 11)
+    patterns_text = f"""Key Historical Patterns:
 
-    <h2>6. Methodology & Data Sources</h2>
-    <div class="section narrative">
-        <p>
-            This analysis employs a Ridge Regression model trained on four Texas gubernatorial elections
-            (2010-2022), incorporating fifteen feature variables across five categories.
-        </p>
+Money Matters--Usually: In three of four recent cycles, the top fundraiser won. The exception--2022--is instructive: despite O'Rourke's $80 million matching Abbott's resources, structural Republican advantages still produced an 11-point GOP victory.
 
-        <h3>Model Features</h3>
-        <ul>
-            <li><strong>Campaign Finance (4 features):</strong> Total raised (R/D), fundraising advantage, spending ratio</li>
-            <li><strong>Polling Data (3 features):</strong> Margin average, standard deviation, historical error adjustment</li>
-            <li><strong>Economic Indicators (3 features):</strong> Unemployment, CPI inflation, GDP growth</li>
-            <li><strong>Market Data (2 features):</strong> VIX mean, VIX standard deviation</li>
-            <li><strong>News Sentiment (3 features):</strong> Positive/negative/neutral coverage ratios via FinBERT</li>
-        </ul>
+Polling Has Been Reliable: Texas gubernatorial polls have shown a mean absolute error of approximately {polling_error} points, with a slight {polling_bias}.
 
-        <h3>Model Performance</h3>
-        <div class="metrics-row">
-            <div class="metric">
-                <div class="value">100%</div>
-                <div class="label">Backtest Accuracy</div>
-            </div>
-            <div class="metric">
-                <div class="value">0.998</div>
-                <div class="label">Training R²</div>
-            </div>
-            <div class="metric">
-                <div class="value">4</div>
-                <div class="label">Elections Analyzed</div>
-            </div>
-        </div>
+Average Republican Margin: {avg_margin}%
+Top Fundraiser Win Rate: {money_win_rate}%
+Years Since Democratic Statewide Win: 32"""
+    pdf.multi_cell(0, 6, patterns_text)
 
-        <p>
-            <strong>Important Caveat:</strong> With only four historical elections and unanimous Republican
-            victories, our model predicts margin rather than binary outcomes. The 100% backtest accuracy
-            reflects correct winner prediction in all training cases, but the small sample size limits
-            statistical confidence. We address this through conservative margin banding (R+12-18%) rather
-            than point estimates.
-        </p>
+    # Section 5: Key Factors
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 18)
+    pdf.cell(0, 12, '5. Key Factors & Market Conditions', ln=True)
+    pdf.ln(5)
+    pdf.set_font('Helvetica', '', 11)
+    pdf.multi_cell(0, 6, 'Our predictive model incorporates multiple data streams beyond traditional political metrics. Economic conditions, market sentiment, and news coverage all contribute to electoral outcomes.')
+    pdf.ln(5)
 
-        <h3>Data Sources</h3>
-        <ul>
-            <li>Texas Secretary of State — Official election results</li>
-            <li>Federal Election Commission / Texas Ethics Commission — Campaign finance records</li>
-            <li>FiveThirtyEight — Aggregated polling data with pollster ratings</li>
-            <li>Federal Reserve Economic Data (FRED) — Economic indicators</li>
-            <li>Yahoo Finance — VIX and market data</li>
-            <li>News APIs (Guardian, NYT) — Coverage for sentiment analysis</li>
-        </ul>
-    </div>
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.cell(0, 10, 'Economic Environment', ln=True)
 
-    <div class="page-break"></div>
+    # Economic Indicators Table
+    pdf.set_font('Helvetica', 'B', 9)
+    pdf.set_fill_color(26, 54, 93)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(45, 8, 'Indicator', border=1, fill=True)
+    pdf.cell(30, 8, 'Value', border=1, fill=True, align='C')
+    pdf.cell(115, 8, 'Political Implication', border=1, fill=True, ln=True)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font('Helvetica', '', 9)
 
-    <h2>7. Conclusions & Implications</h2>
-    <div class="section narrative">
-        <p>
-            The 2026 Texas gubernatorial election is, in practical terms, already decided. Greg Abbott's
-            combination of massive financial resources, incumbency advantages, unified party support,
-            favorable economic conditions, and Texas's structural Republican lean create an insurmountable
-            barrier for any Democratic challenger—particularly one as underfunded as Gina Hinojosa.
-        </p>
+    econ_data = [
+        ['Unemployment Rate', '4.5%', 'Neutral - stable labor market benefits incumbent'],
+        ['CPI Inflation (YoY)', '2.8%', 'Slight headwind - elevated but moderating'],
+        ['GDP Growth', '2.2%', 'Positive - solid economic expansion'],
+        ['VIX Volatility Index', '15.4', 'Favorable - low uncertainty benefits status quo'],
+        ['Federal Funds Rate', '4.25-4.50%', 'Neutral - easing cycle underway'],
+    ]
+    for row in econ_data:
+        pdf.cell(45, 7, row[0], border=1)
+        pdf.cell(30, 7, row[1], border=1, align='C')
+        pdf.cell(115, 7, row[2], border=1, ln=True)
+    pdf.ln(5)
 
-        <h3>What Would Need to Change</h3>
-        <p>
-            For Hinojosa to win, she would need some combination of:
-        </p>
-        <ul>
-            <li>A major Abbott scandal or health crisis</li>
-            <li>Severe economic downturn (recession, financial crisis)</li>
-            <li>$50+ million in late national Democratic investment</li>
-            <li>Unprecedented Latino and young voter turnout</li>
-            <li>Abbott fatigue among Republican base voters</li>
-        </ul>
-        <p>
-            None of these conditions currently exist, and several are mutually exclusive with current trends.
-        </p>
+    pdf.set_font('Helvetica', '', 11)
+    vix_text = """The VIX reading of 15.4 is particularly significant. Academic research consistently shows that low market volatility correlates with incumbent electoral success--voters are less inclined to seek change when economic uncertainty is minimal."""
+    pdf.multi_cell(0, 6, vix_text)
+    pdf.ln(5)
 
-        <h3>Implications for Texas Politics</h3>
-        <p>
-            Abbott's fourth term will cement Republican dominance in Texas for at least another cycle.
-            More significantly, his tenure through 2031 will allow him to influence redistricting implementation,
-            judicial appointments, and party succession planning. Potential 2030 Republican gubernatorial
-            candidates—including Lt. Governor Dan Patrick and Attorney General Ken Paxton—will position
-            themselves accordingly.
-        </p>
-        <p>
-            For Texas Democrats, 2026 represents a "building year" focused on infrastructure development,
-            candidate recruitment, and demographic targeting for 2028 and 2030. The Hinojosa campaign,
-            whatever its outcome, may establish organizational foundations and voter contact programs
-            that benefit future cycles.
-        </p>
+    pdf.set_font('Helvetica', 'B', 14)
+    pdf.cell(0, 10, 'Campaign Finance Disparity', ln=True)
+    pdf.set_font('Helvetica', '', 11)
+    finance_text = """The 81:1 fundraising ratio between Abbott ($105.7M) and Hinojosa ($1.3M) deserves particular emphasis. This disparity exceeds any previous Texas gubernatorial race and ranks among the most lopsided financial matchups in American political history.
 
-        <div class="highlight">
-            <strong>Final Assessment:</strong> Our model assigns Greg Abbott a 99%+ probability of winning
-            a historic fourth term as Texas Governor. He will defeat Gina Hinojosa by approximately 12-18
-            percentage points, becoming the longest-serving Governor in Texas history. This outcome is
-            as close to certain as political forecasting permits.
-        </div>
-    </div>
+In practical terms, Abbott can saturate Texas television markets, maintain paid field operations in all 254 counties, fund sophisticated voter targeting programs, and respond instantly to any attack or emerging issue. Hinojosa will struggle to achieve meaningful television presence outside the final weeks."""
+    pdf.multi_cell(0, 6, finance_text)
 
-    <div class="footer">
-        <p>
-            <strong>TEXAS GOVERNOR RACE ANALYSIS — EXECUTIVE REPORT</strong><br>
-            Generated: {report_date}<br><br>
-            Data Sources: Texas Secretary of State, Campaign Finance Reports, Texas Ethics Commission, FiveThirtyEight,
-            Federal Reserve (FRED), Yahoo Finance, Guardian API, New York Times API<br><br>
-            <em>This report is provided for informational purposes only. Predictions are based on
-            historical data and current conditions; actual election results may vary. Past performance
-            does not guarantee future results.</em>
-        </p>
-    </div>
-</body>
-</html>
-'''
+    # Section 6: Methodology
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 18)
+    pdf.cell(0, 12, '6. Methodology & Data Sources', ln=True)
+    pdf.ln(5)
+    pdf.set_font('Helvetica', '', 11)
+    method_text = """This analysis employs a Ridge Regression model trained on four Texas gubernatorial elections (2010-2022), incorporating fifteen feature variables across five categories:
 
-    # Convert HTML to PDF
+- Campaign Finance (4 features): Total raised (R/D), fundraising advantage, spending ratio
+- Polling Data (3 features): Margin average, standard deviation, historical error adjustment
+- Economic Indicators (3 features): Unemployment, CPI inflation, GDP growth
+- Market Data (2 features): VIX mean, VIX standard deviation
+- News Sentiment (3 features): Positive/negative/neutral coverage ratios via FinBERT
+
+Model Performance: 100% backtest accuracy, 0.998 training R-squared across 4 elections analyzed.
+
+Important Caveat: With only four historical elections and unanimous Republican victories, our model predicts margin rather than binary outcomes. We address this through conservative margin banding (R+12-18%) rather than point estimates.
+
+Data Sources:
+- Texas Secretary of State - Official election results
+- Campaign Finance Reports / Texas Ethics Commission - Campaign finance records
+- FiveThirtyEight - Aggregated polling data with pollster ratings
+- Federal Reserve Economic Data (FRED) - Economic indicators
+- Yahoo Finance - VIX and market data
+- News APIs (Guardian, NYT) - Coverage for sentiment analysis"""
+    pdf.multi_cell(0, 6, method_text)
+
+    # Section 7: Conclusions
+    pdf.add_page()
+    pdf.set_font('Helvetica', 'B', 18)
+    pdf.cell(0, 12, '7. Conclusions & Implications', ln=True)
+    pdf.ln(5)
+    pdf.set_font('Helvetica', '', 11)
+    conclusion_text = """The 2026 Texas gubernatorial election is, in practical terms, already decided. Greg Abbott's combination of massive financial resources, incumbency advantages, unified party support, favorable economic conditions, and Texas's structural Republican lean create an insurmountable barrier for any Democratic challenger--particularly one as underfunded as Gina Hinojosa.
+
+What Would Need to Change for Hinojosa to Win:
+- A major Abbott scandal or health crisis
+- Severe economic downturn (recession, financial crisis)
+- $50+ million in late national Democratic investment
+- Unprecedented Latino and young voter turnout
+- Abbott fatigue among Republican base voters
+
+None of these conditions currently exist.
+
+Implications for Texas Politics:
+Abbott's fourth term will cement Republican dominance in Texas for at least another cycle. His tenure through 2031 will allow him to influence redistricting implementation, judicial appointments, and party succession planning.
+
+For Texas Democrats, 2026 represents a "building year" focused on infrastructure development, candidate recruitment, and demographic targeting for 2028 and 2030."""
+    pdf.multi_cell(0, 6, conclusion_text)
+    pdf.ln(8)
+
+    # Final Assessment Box
+    pdf.set_fill_color(26, 54, 93)
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font('Helvetica', 'B', 11)
+    pdf.multi_cell(0, 8, 'FINAL ASSESSMENT: Our model assigns Greg Abbott a 99%+ probability of winning a historic fourth term as Texas Governor. He will defeat Gina Hinojosa by approximately 12-18 percentage points, becoming the longest-serving Governor in Texas history.', fill=True)
+    pdf.set_text_color(0, 0, 0)
+
+    # Footer
+    pdf.ln(15)
+    pdf.set_font('Helvetica', 'I', 9)
+    pdf.multi_cell(0, 5, f'Texas Governor Race Analysis - Executive Report | Generated: {report_date}\nData Sources: Texas Secretary of State, Campaign Finance Reports, Texas Ethics Commission, FiveThirtyEight, FRED, Yahoo Finance\nThis report is provided for informational purposes only. Predictions are based on historical data and current conditions.', align='C')
+
+    # Output PDF
     pdf_buffer = io.BytesIO()
-    HTML(string=html_report).write_pdf(pdf_buffer)
+    pdf.output(pdf_buffer)
     pdf_buffer.seek(0)
     return pdf_buffer.getvalue()
 
