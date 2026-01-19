@@ -1198,7 +1198,7 @@ class StatisticalModelManager:
     Manages all statistical analysis for Texas Governor race data.
     """
 
-    def __init__(self, use_database: bool = True):
+    def __init__(self, use_database: bool = False):
         """
         Initialize the Statistical Model Manager.
 
@@ -1473,9 +1473,9 @@ def main():
         help=f'Output directory (default: {OUTPUT_DIR})'
     )
     parser.add_argument(
-        '--use-etl',
+        '--use-database',
         action='store_true',
-        help='Use ETL pipeline instead of database'
+        help='Use Snowflake database instead of ETL pipeline'
     )
     parser.add_argument(
         '--print-json',
@@ -1490,7 +1490,7 @@ def main():
         args.summary = True
 
     # Initialize manager
-    manager = StatisticalModelManager(use_database=not args.use_etl)
+    manager = StatisticalModelManager(use_database=args.use_database)
 
     if not manager.initialize():
         logger.error("Failed to initialize data sources")
