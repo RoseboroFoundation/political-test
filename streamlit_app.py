@@ -231,6 +231,81 @@ def format_percentage(value):
     return value
 
 
+def format_stat_value(value):
+    """Format a statistic value for display."""
+    if value is None or value == 'N/A':
+        return 'N/A'
+    if isinstance(value, bool):
+        return 'Yes' if value else 'No'
+    if isinstance(value, float):
+        if abs(value) >= 1000000:
+            return f"{value/1000000:,.1f}M"
+        if abs(value) >= 1000:
+            return f"{value/1000:,.1f}K"
+        return f"{value:,.2f}"
+    if isinstance(value, int):
+        if abs(value) >= 1000000:
+            return f"{value/1000000:,.1f}M"
+        if abs(value) >= 1000:
+            return f"{value:,}"
+        return str(value)
+    return str(value)
+
+
+def format_stat_label(key: str) -> str:
+    """Convert snake_case key to readable label."""
+    return key.replace('_', ' ').replace('pct', '%').title()
+
+
+def display_stats_table(data: dict, title: str = None):
+    """Display dictionary data as a formatted table."""
+    if not data:
+        st.info("No data available")
+        return
+
+    if title:
+        st.markdown(f"**{title}**")
+
+    # Filter out nested dicts and lists for simple display
+    simple_data = {}
+    for k, v in data.items():
+        if not isinstance(v, (dict, list)):
+            simple_data[k] = v
+
+    if simple_data:
+        # Create a styled table
+        rows = []
+        for key, value in simple_data.items():
+            label = format_stat_label(key)
+            formatted_value = format_stat_value(value)
+            rows.append(f"| {label} | {formatted_value} |")
+
+        table_md = "| Metric | Value |\n|--------|-------|\n" + "\n".join(rows)
+        st.markdown(table_md)
+
+
+def display_stats_metrics(data: dict, cols_per_row: int = 4):
+    """Display dictionary data as metric cards."""
+    if not data:
+        st.info("No data available")
+        return
+
+    # Filter out nested dicts and lists
+    simple_data = {k: v for k, v in data.items() if not isinstance(v, (dict, list))}
+
+    if not simple_data:
+        return
+
+    keys = list(simple_data.keys())
+    for i in range(0, len(keys), cols_per_row):
+        cols = st.columns(cols_per_row)
+        for j, key in enumerate(keys[i:i+cols_per_row]):
+            with cols[j]:
+                label = format_stat_label(key)
+                value = format_stat_value(simple_data[key])
+                st.metric(label, value)
+
+
 # =============================================================================
 # SIDEBAR
 # =============================================================================
@@ -270,9 +345,28 @@ def render_sidebar():
 
         st.markdown("---")
 
-        st.markdown("### Quick Stats")
+        st.markdown("### Model Accuracy")
         try:
             manager = load_model_manager()
+
+            # Polling accuracy
+            polling = manager.all_results.get('polling', {})
+            accuracy = polling.get('polling_accuracy', {}).get('overall', {})
+            if accuracy:
+                mae = accuracy.get('mean_absolute_error', 'N/A')
+                st.metric("Polling Error (MAE)", f"{mae} pts" if mae != 'N/A' else 'N/A')
+                direction = accuracy.get('direction', 'N/A')
+                st.caption(f"Bias: {direction}")
+
+            # Money vs results
+            finance = manager.all_results.get('campaign_finance', {})
+            money_win = finance.get('money_vs_results', {}).get('money_win_rate')
+            if money_win:
+                st.metric("Money Predicts Winner", f"{money_win}%")
+
+            st.markdown("---")
+
+            st.markdown("### Quick Stats")
             elections = manager.all_results.get('elections', {})
             if elections:
                 st.metric("Elections Analyzed", "4")
@@ -472,21 +566,15 @@ def render_model_tab(manager, viz):
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("**Vote Statistics**")
             vote_stats = elections.get('vote_statistics', {}).get('overall', {})
-            if vote_stats:
-                st.json(vote_stats)
+            display_stats_table(vote_stats, "Vote Statistics")
 
         with col2:
-            st.markdown("**Margin Statistics**")
             margin_stats = elections.get('margin_statistics', {}).get('competitiveness', {})
-            if margin_stats:
-                st.json(margin_stats)
+            display_stats_table(margin_stats, "Margin Statistics")
 
-        st.markdown("**Historical Trends**")
         trends = elections.get('historical_trends', {})
-        if trends:
-            st.json(trends)
+        display_stats_table(trends, "Historical Trends")
 
     with st.expander("💰 Campaign Finance Statistics"):
         finance = manager.all_results.get('campaign_finance', {})
@@ -494,16 +582,12 @@ def render_model_tab(manager, viz):
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("**Fundraising Overview**")
             fundraising = finance.get('fundraising_statistics', {}).get('overall', {})
-            if fundraising:
-                st.json(fundraising)
+            display_stats_table(fundraising, "Fundraising Overview")
 
         with col2:
-            st.markdown("**Spending Analysis**")
             spending = finance.get('spending_statistics', {})
-            if spending:
-                st.json(spending)
+            display_stats_table(spending, "Spending Analysis")
 
         # Expenditure chart
         fig = viz.expenditure_categories()
@@ -515,24 +599,19 @@ def render_model_tab(manager, viz):
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("**Poll Summary**")
             poll_summary = polling.get('poll_summary', {})
-            if poll_summary:
-                st.json(poll_summary)
+            display_stats_table(poll_summary, "Poll Summary")
 
             fig = viz.pollster_activity()
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
-            st.markdown("**Sample Size Analysis**")
             sample_stats = polling.get('sample_size_analysis', {})
-            if sample_stats:
-                st.json(sample_stats)
+            display_stats_table(sample_stats, "Sample Size Analysis")
 
-            st.markdown("**Trend Analysis**")
             trend_stats = polling.get('trend_analysis', {})
             if trend_stats.get('volatility_summary'):
-                st.json(trend_stats['volatility_summary'])
+                display_stats_table(trend_stats['volatility_summary'], "Trend Analysis")
 
     with st.expander("📰 News Coverage Statistics"):
         news = manager.all_results.get('news', {})
@@ -556,19 +635,16 @@ def render_model_tab(manager, viz):
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("**Event Summary**")
             event_summary = culture_war.get('event_summary', {})
-            if event_summary:
-                st.json(event_summary)
+            display_stats_table(event_summary, "Event Summary")
 
             fig = viz.culture_war_events_by_year()
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
-            st.markdown("**Political Leaning**")
             political = culture_war.get('political_leaning_analysis', {})
-            if political:
-                st.json({k: v for k, v in political.items() if not k.endswith('_distribution')})
+            filtered_political = {k: v for k, v in political.items() if not k.endswith('_distribution')}
+            display_stats_table(filtered_political, "Political Leaning")
 
             fig = viz.culture_war_political_leaning()
             st.plotly_chart(fig, use_container_width=True)
@@ -582,18 +658,16 @@ def render_model_tab(manager, viz):
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("**VIX Analysis**")
             vix = market.get('vix_analysis', {})
-            if vix:
-                st.json({k: v for k, v in vix.items() if k != 'summary'})
+            filtered_vix = {k: v for k, v in vix.items() if k != 'summary'}
+            display_stats_table(filtered_vix, "VIX Analysis")
 
             fig = viz.vix_summary()
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
-            st.markdown("**VIX Distribution**")
             if vix.get('summary'):
-                st.json(vix['summary'])
+                display_stats_table(vix['summary'], "VIX Distribution")
 
             fig = viz.vix_distribution()
             st.plotly_chart(fig, use_container_width=True)
@@ -604,26 +678,21 @@ def render_model_tab(manager, viz):
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("**Inflation Analysis**")
             inflation = macro.get('inflation_analysis', {})
-            if inflation:
-                st.json({k: v for k, v in inflation.items() if k != 'cpi_summary'})
+            filtered_inflation = {k: v for k, v in inflation.items() if k != 'cpi_summary'}
+            display_stats_table(filtered_inflation, "Inflation Analysis")
 
-            st.markdown("**GDP Analysis**")
             gdp = macro.get('gdp_analysis', {})
-            if gdp:
-                st.json({k: v for k, v in gdp.items() if k != 'growth_summary'})
+            filtered_gdp = {k: v for k, v in gdp.items() if k != 'growth_summary'}
+            display_stats_table(filtered_gdp, "GDP Analysis")
 
         with col2:
-            st.markdown("**Employment Analysis**")
             employment = macro.get('employment_analysis', {})
-            if employment:
-                st.json({k: v for k, v in employment.items() if k != 'unemployment_summary'})
+            filtered_employment = {k: v for k, v in employment.items() if k != 'unemployment_summary'}
+            display_stats_table(filtered_employment, "Employment Analysis")
 
-            st.markdown("**Rates Analysis**")
             rates = macro.get('rates_analysis', {})
-            if rates:
-                st.json(rates)
+            display_stats_table(rates, "Rates Analysis")
 
         fig = viz.macro_indicators_summary()
         st.plotly_chart(fig, use_container_width=True)
@@ -637,7 +706,23 @@ def render_model_tab(manager, viz):
     correlations = manager.all_results.get('correlations', {})
     if correlations.get('polls_vs_results'):
         st.markdown("**Polls vs Results Analysis**")
-        st.json(correlations['polls_vs_results'])
+        polls_vs_results = correlations['polls_vs_results']
+        display_stats_table(polls_vs_results)
+
+        # Show by-year breakdown if available
+        if polls_vs_results.get('by_year'):
+            st.markdown("**Polling Error by Year**")
+            by_year = polls_vs_results['by_year']
+            year_data = []
+            for year, data in sorted(by_year.items()):
+                if isinstance(data, dict):
+                    year_data.append({
+                        'Year': year,
+                        'Polling Error': f"{data.get('polling_error', 'N/A')}",
+                        'Direction': data.get('direction', 'N/A')
+                    })
+            if year_data:
+                st.dataframe(pd.DataFrame(year_data), use_container_width=True, hide_index=True)
 
 
 # =============================================================================
