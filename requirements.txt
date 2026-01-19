@@ -1,0 +1,68 @@
+# =============================================================================
+# Texas Governor Race Political Data - Requirements
+# =============================================================================
+# Install with: pip install -r requirements.txt
+# =============================================================================
+
+# Core Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Financial Data
+yfinance>=0.2.28
+pandas-datareader>=0.10.0
+
+# FRED Economic Data
+fredapi>=0.5.1
+
+# Web Scraping & APIs
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+
+# Reddit API
+praw>=7.7.0
+
+# Environment Variables
+python-dotenv>=1.0.0
+
+# Snowflake Database
+snowflake-connector-python>=3.5.0
+snowflake-sqlalchemy>=1.5.0
+
+# Excel Support
+openpyxl>=3.1.0
+
+# Parquet Support
+pyarrow>=14.0.0
+
+# =============================================================================
+# Optional Dependencies
+# =============================================================================
+
+# For Jupyter Notebook support
+# jupyter>=1.0.0
+# notebook>=7.0.0
+
+# For data visualization
+# matplotlib>=3.7.0
+# seaborn>=0.12.0
+# plotly>=5.15.0
+
+# For testing
+# pytest>=7.4.0
+# pytest-cov>=4.1.0
+
+# =============================================================================
+# Development Dependencies
+# =============================================================================
+
+# Code formatting
+# black>=23.0.0
+# isort>=5.12.0
+
+# Linting
+# flake8>=6.1.0
+# pylint>=2.17.0
+
+# Type checking
+# mypy>=1.5.0
