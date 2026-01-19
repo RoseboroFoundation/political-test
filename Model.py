@@ -1123,6 +1123,233 @@ class NewsStatistics(DescriptiveStatistics):
 
 
 # =============================================================================
+# CULTURE WAR STATISTICS
+# =============================================================================
+class CultureWarStatistics(DescriptiveStatistics):
+    """
+    Computes descriptive statistics for culture war companies data.
+    """
+
+    def __init__(self, db_manager=None, data: Dict[str, pd.DataFrame] = None):
+        """
+        Initialize Culture War Statistics.
+
+        Args:
+            db_manager: DatabaseManager instance for Snowflake queries
+            data: Dictionary of DataFrames with culture war data
+        """
+        self.db = db_manager
+        self.data = data or {}
+        self.results = {}
+
+    def load_data(self) -> None:
+        """Load culture war data from database."""
+        if self.db:
+            try:
+                self.data['events'] = self.convert_decimals(self.db.run_query(
+                    "SELECT * FROM CULTURE_WAR_EVENTS"
+                ))
+                self.data['stock_impact'] = self.convert_decimals(self.db.run_query(
+                    "SELECT * FROM CULTURE_WAR_STOCK_IMPACT"
+                ))
+                self.data['summary'] = self.convert_decimals(self.db.run_query(
+                    "SELECT * FROM CULTURE_WAR_SUMMARY"
+                ))
+            except Exception as e:
+                logger.warning(f"Could not load from database: {e}")
+
+    def load_from_csv(self, csv_path: str = 'Culture_War_Companies_160_fullmeta.csv') -> None:
+        """Load culture war data from CSV file."""
+        try:
+            df = pd.read_csv(csv_path)
+            df['Event Date'] = pd.to_datetime(df['Event Date'], errors='coerce')
+            self.data['events'] = df
+            logger.info(f"Loaded {len(df)} culture war events from CSV")
+        except Exception as e:
+            logger.warning(f"Could not load culture war CSV: {e}")
+
+    def compute_all(self) -> Dict[str, Any]:
+        """Compute all culture war statistics."""
+        logger.info("Computing culture war statistics...")
+
+        self.results = {
+            'event_summary': self._event_summary(),
+            'industry_analysis': self._industry_analysis(),
+            'political_leaning_analysis': self._political_leaning_analysis(),
+            'temporal_analysis': self._temporal_analysis(),
+            'company_analysis': self._company_analysis()
+        }
+
+        return self.results
+
+    def _event_summary(self) -> Dict[str, Any]:
+        """Compute overall event summary statistics."""
+        if 'events' not in self.data or self.data['events'] is None:
+            return {}
+
+        df = self.data['events']
+        if df.empty:
+            return {}
+
+        # Handle column name variations
+        company_col = 'COMPANY' if 'COMPANY' in df.columns else 'Company'
+        industry_col = 'INDUSTRY' if 'INDUSTRY' in df.columns else 'Industry'
+        ticker_col = 'TICKER' if 'TICKER' in df.columns else 'Ticker'
+        year_col = 'YEAR' if 'YEAR' in df.columns else 'Year'
+
+        stats = {
+            'total_events': len(df),
+            'unique_companies': df[company_col].nunique() if company_col in df.columns else 0,
+            'unique_industries': df[industry_col].nunique() if industry_col in df.columns else 0,
+            'year_range': {
+                'min': int(df[year_col].min()) if year_col in df.columns else None,
+                'max': int(df[year_col].max()) if year_col in df.columns else None
+            },
+            'events_per_year': df[year_col].value_counts().to_dict() if year_col in df.columns else {}
+        }
+
+        return stats
+
+    def _industry_analysis(self) -> Dict[str, Any]:
+        """Analyze culture war events by industry."""
+        if 'events' not in self.data or self.data['events'] is None:
+            return {}
+
+        df = self.data['events']
+        if df.empty:
+            return {}
+
+        industry_col = 'INDUSTRY' if 'INDUSTRY' in df.columns else 'Industry'
+
+        if industry_col not in df.columns:
+            return {}
+
+        industry_counts = df[industry_col].value_counts()
+
+        stats = {
+            'industry_distribution': industry_counts.to_dict(),
+            'top_industries': industry_counts.head(10).to_dict(),
+            'industry_count': len(industry_counts)
+        }
+
+        return stats
+
+    def _political_leaning_analysis(self) -> Dict[str, Any]:
+        """Analyze events by political leaning."""
+        if 'events' not in self.data or self.data['events'] is None:
+            return {}
+
+        df = self.data['events']
+        if df.empty:
+            return {}
+
+        leaning_col = 'ESTIMATED_POLITICAL_LEANING' if 'ESTIMATED_POLITICAL_LEANING' in df.columns else 'Estimated Political Leaning'
+
+        if leaning_col not in df.columns:
+            return {}
+
+        leaning_counts = df[leaning_col].value_counts()
+
+        stats = {
+            'leaning_distribution': leaning_counts.to_dict(),
+            'liberal_events': int(leaning_counts.get('Liberal', 0)),
+            'conservative_events': int(leaning_counts.get('Conservative', 0)),
+            'mixed_events': int(leaning_counts.get('Mixed', 0))
+        }
+
+        # Calculate percentages
+        total = len(df)
+        if total > 0:
+            stats['liberal_pct'] = round(stats['liberal_events'] / total * 100, 1)
+            stats['conservative_pct'] = round(stats['conservative_events'] / total * 100, 1)
+            stats['mixed_pct'] = round(stats['mixed_events'] / total * 100, 1)
+
+        return stats
+
+    def _temporal_analysis(self) -> Dict[str, Any]:
+        """Analyze temporal patterns in culture war events."""
+        if 'events' not in self.data or self.data['events'] is None:
+            return {}
+
+        df = self.data['events']
+        if df.empty:
+            return {}
+
+        year_col = 'YEAR' if 'YEAR' in df.columns else 'Year'
+        date_col = 'EVENT_DATE' if 'EVENT_DATE' in df.columns else 'Event Date'
+
+        if year_col not in df.columns:
+            return {}
+
+        yearly_counts = df[year_col].value_counts().sort_index()
+
+        stats = {
+            'yearly_trend': yearly_counts.to_dict(),
+            'peak_year': int(yearly_counts.idxmax()) if not yearly_counts.empty else None,
+            'peak_year_count': int(yearly_counts.max()) if not yearly_counts.empty else 0,
+            'avg_events_per_year': round(yearly_counts.mean(), 1) if not yearly_counts.empty else 0
+        }
+
+        # Growth analysis
+        if len(yearly_counts) >= 2:
+            years = sorted(yearly_counts.index)
+            first_half = yearly_counts[yearly_counts.index <= years[len(years)//2]].mean()
+            second_half = yearly_counts[yearly_counts.index > years[len(years)//2]].mean()
+            stats['trend_direction'] = 'Increasing' if second_half > first_half else 'Decreasing'
+
+        return stats
+
+    def _company_analysis(self) -> Dict[str, Any]:
+        """Analyze companies involved in culture war events."""
+        if 'events' not in self.data or self.data['events'] is None:
+            return {}
+
+        df = self.data['events']
+        if df.empty:
+            return {}
+
+        company_col = 'COMPANY' if 'COMPANY' in df.columns else 'Company'
+        ticker_col = 'TICKER' if 'TICKER' in df.columns else 'Ticker'
+        industry_col = 'INDUSTRY' if 'INDUSTRY' in df.columns else 'Industry'
+
+        if company_col not in df.columns:
+            return {}
+
+        company_counts = df[company_col].value_counts()
+
+        stats = {
+            'companies_with_multiple_events': int((company_counts > 1).sum()),
+            'top_companies': company_counts.head(10).to_dict(),
+            'single_event_companies': int((company_counts == 1).sum())
+        }
+
+        # Get unique company info
+        if ticker_col in df.columns:
+            stats['unique_tickers'] = df[ticker_col].nunique()
+
+        return stats
+
+    def get_summary(self) -> Dict[str, Any]:
+        """Get high-level summary for display."""
+        if not self.results:
+            self.compute_all()
+
+        event_summary = self.results.get('event_summary', {})
+        political = self.results.get('political_leaning_analysis', {})
+        temporal = self.results.get('temporal_analysis', {})
+
+        return {
+            'total_events': event_summary.get('total_events', 'N/A'),
+            'unique_companies': event_summary.get('unique_companies', 'N/A'),
+            'unique_industries': event_summary.get('unique_industries', 'N/A'),
+            'liberal_events': political.get('liberal_events', 'N/A'),
+            'conservative_events': political.get('conservative_events', 'N/A'),
+            'peak_year': temporal.get('peak_year', 'N/A'),
+            'trend': temporal.get('trend_direction', 'N/A')
+        }
+
+
+# =============================================================================
 # CORRELATION ANALYSIS
 # =============================================================================
 class CorrelationAnalysis:
@@ -1238,6 +1465,7 @@ class StatisticalModelManager:
         self.finance_stats = None
         self.polling_stats = None
         self.news_stats = None
+        self.culture_war_stats = None
         self.correlation_analysis = None
 
         self.all_results = {}
@@ -1261,12 +1489,18 @@ class StatisticalModelManager:
         self.finance_stats = CampaignFinanceStatistics(db_manager=self.db_manager)
         self.polling_stats = PollingStatistics(db_manager=self.db_manager)
         self.news_stats = NewsStatistics(db_manager=self.db_manager)
+        self.culture_war_stats = CultureWarStatistics(db_manager=self.db_manager)
 
         # Load data from database
         self.election_stats.load_data()
         self.finance_stats.load_data()
         self.polling_stats.load_data()
         self.news_stats.load_data()
+        self.culture_war_stats.load_data()
+
+        # Also try to load culture war data from CSV if not in database
+        if not self.culture_war_stats.data.get('events'):
+            self.culture_war_stats.load_from_csv()
 
         return True
 
@@ -1302,6 +1536,10 @@ class StatisticalModelManager:
             'by_topic': transformed.get('news_by_topic')
         })
 
+        # Load culture war data from CSV
+        self.culture_war_stats = CultureWarStatistics()
+        self.culture_war_stats.load_from_csv()
+
         return True
 
     def run_all_statistics(self) -> Dict[str, Any]:
@@ -1314,6 +1552,10 @@ class StatisticalModelManager:
         self.all_results['campaign_finance'] = self.finance_stats.compute_all()
         self.all_results['polling'] = self.polling_stats.compute_all()
         self.all_results['news'] = self.news_stats.compute_all()
+
+        # Culture war statistics
+        if self.culture_war_stats:
+            self.all_results['culture_war'] = self.culture_war_stats.compute_all()
 
         # Cross-dataset correlations
         self.correlation_analysis = CorrelationAnalysis(
@@ -1401,6 +1643,28 @@ class StatisticalModelManager:
                 print(f"  Texas Coverage: {scope.get('texas_pct', 'N/A')}%")
                 print(f"  National Coverage: {scope.get('national_pct', 'N/A')}%")
 
+        # Culture War Statistics
+        if 'culture_war' in self.all_results:
+            print("\n" + "-" * 50)
+            print("CULTURE WAR STATISTICS")
+            print("-" * 50)
+
+            event_summary = self.all_results['culture_war'].get('event_summary', {})
+            print(f"  Total Events: {event_summary.get('total_events', 'N/A')}")
+            print(f"  Unique Companies: {event_summary.get('unique_companies', 'N/A')}")
+            print(f"  Unique Industries: {event_summary.get('unique_industries', 'N/A')}")
+
+            political = self.all_results['culture_war'].get('political_leaning_analysis', {})
+            if political:
+                print(f"  Liberal Events: {political.get('liberal_events', 'N/A')} ({political.get('liberal_pct', 'N/A')}%)")
+                print(f"  Conservative Events: {political.get('conservative_events', 'N/A')} ({political.get('conservative_pct', 'N/A')}%)")
+                print(f"  Mixed Events: {political.get('mixed_events', 'N/A')} ({political.get('mixed_pct', 'N/A')}%)")
+
+            temporal = self.all_results['culture_war'].get('temporal_analysis', {})
+            if temporal:
+                print(f"  Peak Year: {temporal.get('peak_year', 'N/A')} ({temporal.get('peak_year_count', 'N/A')} events)")
+                print(f"  Trend: {temporal.get('trend_direction', 'N/A')}")
+
         print("\n" + "=" * 70)
 
     def export_results(self, output_dir: str = OUTPUT_DIR) -> Dict[str, str]:
@@ -1484,6 +1748,11 @@ def main():
         help='Run news coverage statistics only'
     )
     parser.add_argument(
+        '--culture-war', '-w',
+        action='store_true',
+        help='Run culture war statistics only'
+    )
+    parser.add_argument(
         '--correlations', '-c',
         action='store_true',
         help='Run cross-dataset correlation analysis'
@@ -1512,7 +1781,7 @@ def main():
     args = parser.parse_args()
 
     # Default to summary if no specific option selected
-    if not any([args.summary, args.elections, args.finance, args.polling, args.news, args.correlations]):
+    if not any([args.summary, args.elections, args.finance, args.polling, args.news, args.culture_war, args.correlations]):
         args.summary = True
 
     # Initialize manager
@@ -1541,6 +1810,9 @@ def main():
 
             if args.news:
                 results['news'] = manager.news_stats.compute_all()
+
+            if args.culture_war:
+                results['culture_war'] = manager.culture_war_stats.compute_all()
 
             if args.correlations:
                 manager.run_all_statistics()  # Need all stats for correlations

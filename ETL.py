@@ -344,6 +344,53 @@ DATA_DICTIONARY = {
                 ]
             }
         }
+    },
+    'culture_war_companies': {
+        'description': 'Culture war companies events and market impact data',
+        'source': 'Roseboro Foundation Research',
+        'url': 'internal',
+        'tables': {
+            'events': {
+                'description': 'Culture war events by company',
+                'columns': [
+                    'company', 'year', 'culture_war_event', 'event_date',
+                    'industry', 'ticker', 'estimated_political_leaning',
+                    'political_leaning_justifications', 'naics_code',
+                    'control_firm', 'control_ticker', 'rationale'
+                ]
+            },
+            'stock_impact': {
+                'description': 'Stock price impact around culture war events',
+                'columns': [
+                    'ticker', 'event_date', 'price_before', 'price_after',
+                    'return_1d', 'return_5d', 'return_30d', 'abnormal_return',
+                    'volume_change', 'volatility'
+                ]
+            },
+            'insider_trading': {
+                'description': 'Form 4 insider trading around events',
+                'columns': [
+                    'ticker', 'filing_date', 'transaction_date', 'insider_name',
+                    'insider_title', 'transaction_type', 'shares', 'price',
+                    'value', 'shares_owned_after'
+                ]
+            },
+            'news_coverage': {
+                'description': 'News coverage of culture war events',
+                'columns': [
+                    'company', 'ticker', 'event_date', 'source', 'title',
+                    'published_date', 'sentiment', 'article_url'
+                ]
+            },
+            'summary': {
+                'description': 'Summary statistics by company and event',
+                'columns': [
+                    'company', 'ticker', 'industry', 'political_leaning',
+                    'event_count', 'avg_stock_impact', 'avg_abnormal_return',
+                    'news_article_count', 'insider_trades_count'
+                ]
+            }
+        }
     }
 }
 
