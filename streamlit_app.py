@@ -37,86 +37,111 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Custom CSS - Dark Mode
 st.markdown("""
 <style>
+    /* Dark mode base */
+    .stApp {
+        background-color: #0e1117;
+    }
     .main-header {
         font-size: 2.5rem;
         font-weight: bold;
-        color: #1f4e79;
+        color: #58a6ff;
         text-align: center;
         padding: 1rem 0;
-        border-bottom: 3px solid #1f4e79;
+        border-bottom: 3px solid #58a6ff;
         margin-bottom: 2rem;
     }
     .metric-card {
-        background-color: #f8f9fa;
+        background-color: #161b22;
         padding: 1.5rem;
         border-radius: 10px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         text-align: center;
         height: 100%;
+        border: 1px solid #30363d;
     }
     .metric-title {
-        color: #6c757d;
+        color: #8b949e;
         font-size: 0.9rem;
         margin-bottom: 0.5rem;
     }
     .metric-value {
-        color: #1f4e79;
+        color: #58a6ff;
         font-size: 1.8rem;
         font-weight: bold;
     }
     .tab-header {
         font-size: 1.5rem;
         font-weight: bold;
-        color: #2c3e50;
+        color: #e6edf3;
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
-        border-bottom: 2px solid #e9ecef;
+        border-bottom: 2px solid #30363d;
     }
     .section-header {
         font-size: 1.2rem;
         font-weight: bold;
-        color: #34495e;
+        color: #c9d1d9;
         margin-top: 1.5rem;
         margin-bottom: 1rem;
     }
     .info-box {
-        background-color: #e3f2fd;
-        border-left: 4px solid #2196f3;
+        background-color: #0d1f3c;
+        border-left: 4px solid #58a6ff;
         padding: 1rem;
         margin: 1rem 0;
         border-radius: 0 5px 5px 0;
+        color: #c9d1d9;
     }
     .warning-box {
-        background-color: #fff3e0;
-        border-left: 4px solid #ff9800;
+        background-color: #3d2a00;
+        border-left: 4px solid #d29922;
         padding: 1rem;
         margin: 1rem 0;
         border-radius: 0 5px 5px 0;
+        color: #c9d1d9;
     }
     .success-box {
-        background-color: #e8f5e9;
-        border-left: 4px solid #4caf50;
+        background-color: #0d2818;
+        border-left: 4px solid #3fb950;
         padding: 1rem;
         margin: 1rem 0;
         border-radius: 0 5px 5px 0;
+        color: #c9d1d9;
     }
     .code-box {
-        background-color: #263238;
-        color: #aed581;
+        background-color: #161b22;
+        color: #7ee787;
         padding: 1rem;
         border-radius: 5px;
         font-family: 'Courier New', monospace;
         overflow-x: auto;
+        border: 1px solid #30363d;
     }
     .footer {
         text-align: center;
-        color: #6c757d;
+        color: #8b949e;
         padding: 2rem 0;
-        border-top: 1px solid #e9ecef;
+        border-top: 1px solid #30363d;
         margin-top: 2rem;
+    }
+    /* Sidebar dark mode */
+    [data-testid="stSidebar"] {
+        background-color: #161b22;
+    }
+    [data-testid="stSidebar"] .stMarkdown {
+        color: #c9d1d9;
+    }
+    /* Expander dark mode */
+    .streamlit-expanderHeader {
+        background-color: #161b22;
+        color: #c9d1d9;
+    }
+    /* DataFrame dark mode */
+    .stDataFrame {
+        background-color: #161b22;
     }
 </style>
 """, unsafe_allow_html=True)

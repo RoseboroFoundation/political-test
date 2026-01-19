@@ -21,20 +21,23 @@ from plotly.subplots import make_subplots
 
 
 # =============================================================================
-# COLOR SCHEMES
+# COLOR SCHEMES - DARK MODE
 # =============================================================================
 COLORS = {
-    'republican': '#E91D0E',
-    'democrat': '#232066',
-    'independent': '#808080',
-    'primary': '#1f77b4',
-    'secondary': '#ff7f0e',
-    'success': '#2ca02c',
-    'warning': '#d62728',
-    'neutral': '#7f7f7f',
-    'light_blue': '#aec7e8',
-    'light_red': '#ffbb78',
-    'background': '#f8f9fa'
+    'republican': '#f85149',
+    'democrat': '#58a6ff',
+    'independent': '#8b949e',
+    'primary': '#58a6ff',
+    'secondary': '#f0883e',
+    'success': '#3fb950',
+    'warning': '#d29922',
+    'neutral': '#8b949e',
+    'light_blue': '#388bfd',
+    'light_red': '#ff7b72',
+    'background': '#0e1117',
+    'paper': '#161b22',
+    'grid': '#30363d',
+    'text': '#c9d1d9'
 }
 
 PARTY_COLORS = {
@@ -45,6 +48,30 @@ PARTY_COLORS = {
     'I': COLORS['independent'],
     'Independent': COLORS['independent']
 }
+
+# Dark mode layout template for all charts
+DARK_LAYOUT = dict(
+    paper_bgcolor=COLORS['background'],
+    plot_bgcolor=COLORS['paper'],
+    font=dict(color=COLORS['text']),
+    title_font=dict(color=COLORS['text']),
+    legend=dict(
+        bgcolor='rgba(0,0,0,0)',
+        font=dict(color=COLORS['text'])
+    ),
+    xaxis=dict(
+        gridcolor=COLORS['grid'],
+        linecolor=COLORS['grid'],
+        tickfont=dict(color=COLORS['text']),
+        title_font=dict(color=COLORS['text'])
+    ),
+    yaxis=dict(
+        gridcolor=COLORS['grid'],
+        linecolor=COLORS['grid'],
+        tickfont=dict(color=COLORS['text']),
+        title_font=dict(color=COLORS['text'])
+    )
+)
 
 
 # =============================================================================
@@ -74,6 +101,11 @@ class Visualizer:
         if subcategory:
             return data.get(subcategory, {})
         return data
+
+    def _apply_dark_theme(self, fig: go.Figure) -> go.Figure:
+        """Apply dark theme to a Plotly figure."""
+        fig.update_layout(**DARK_LAYOUT)
+        return self._apply_dark_theme(fig)
 
     # =========================================================================
     # ELECTION VISUALIZATIONS
@@ -124,7 +156,7 @@ class Visualizer:
             height=400
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     def election_vote_totals(self) -> go.Figure:
         """Create vote totals comparison by year."""
@@ -161,7 +193,7 @@ class Visualizer:
             height=400
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     def party_performance_comparison(self) -> go.Figure:
         """Create party performance comparison over time."""
@@ -203,7 +235,7 @@ class Visualizer:
             height=400
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     # =========================================================================
     # CAMPAIGN FINANCE VISUALIZATIONS
@@ -247,7 +279,7 @@ class Visualizer:
         fig.update_yaxes(title_text='Total Raised ($)', secondary_y=False, tickformat='$,.0f')
         fig.update_yaxes(title_text='Avg per Candidate ($)', secondary_y=True, tickformat='$,.0f')
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     def party_fundraising_comparison(self) -> go.Figure:
         """Create party fundraising comparison."""
@@ -287,7 +319,7 @@ class Visualizer:
             height=400
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     def expenditure_categories(self) -> go.Figure:
         """Create expenditure by category pie chart."""
@@ -311,7 +343,7 @@ class Visualizer:
             height=450
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     # =========================================================================
     # POLLING VISUALIZATIONS
@@ -370,7 +402,7 @@ class Visualizer:
             height=400
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     def polling_accuracy(self) -> go.Figure:
         """Create polling accuracy analysis chart."""
@@ -410,7 +442,7 @@ class Visualizer:
             height=400
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     def pollster_activity(self) -> go.Figure:
         """Create pollster activity chart."""
@@ -436,7 +468,7 @@ class Visualizer:
             yaxis=dict(autorange='reversed')
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     # =========================================================================
     # NEWS VISUALIZATIONS
@@ -480,7 +512,7 @@ class Visualizer:
         fig.update_yaxes(title_text='Number of Articles', secondary_y=False)
         fig.update_yaxes(title_text='Number of Sources', secondary_y=True)
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     def news_by_source(self) -> go.Figure:
         """Create news by source pie chart."""
@@ -503,7 +535,7 @@ class Visualizer:
             height=450
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     def news_by_topic(self) -> go.Figure:
         """Create news by topic bar chart."""
@@ -529,7 +561,7 @@ class Visualizer:
             yaxis=dict(autorange='reversed')
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     # =========================================================================
     # CULTURE WAR VISUALIZATIONS
@@ -572,7 +604,7 @@ class Visualizer:
             height=400
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     def culture_war_by_industry(self) -> go.Figure:
         """Create culture war events by industry chart."""
@@ -598,7 +630,7 @@ class Visualizer:
             yaxis=dict(autorange='reversed')
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     def culture_war_political_leaning(self) -> go.Figure:
         """Create culture war political leaning pie chart."""
@@ -629,7 +661,7 @@ class Visualizer:
             height=400
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     # =========================================================================
     # MARKET VISUALIZATIONS
@@ -673,7 +705,7 @@ class Visualizer:
             height=350
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     def vix_distribution(self) -> go.Figure:
         """Create VIX distribution chart."""
@@ -705,7 +737,7 @@ class Visualizer:
             height=400
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     # =========================================================================
     # MACROECONOMIC VISUALIZATIONS
@@ -765,7 +797,7 @@ class Visualizer:
             height=400
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     # =========================================================================
     # CORRELATION / COMBINED VISUALIZATIONS
@@ -827,7 +859,7 @@ class Visualizer:
             height=600
         )
 
-        return fig
+        return self._apply_dark_theme(fig)
 
     # =========================================================================
     # KEY METRICS CARDS DATA
@@ -893,14 +925,14 @@ class Visualizer:
             xref="paper", yref="paper",
             x=0.5, y=0.5,
             showarrow=False,
-            font=dict(size=16, color="gray")
+            font=dict(size=16, color=COLORS['text'])
         )
         fig.update_layout(
             xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
             yaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
             height=300
         )
-        return fig
+        return self._apply_dark_theme(fig)
 
 
 # =============================================================================
