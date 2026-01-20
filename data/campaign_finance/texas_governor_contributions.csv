@@ -1,0 +1,8 @@
+election_year,candidate,party,donor_name,amount,donor_employer,contribution_date,contribution_type,source
+2022,Greg Abbott,R,Kelcy Warren,1000000,Energy Transfer,2022-06-30,Individual,Public Reports
+2022,Greg Abbott,R,Tilman Fertitta,500000,Fertitta Entertainment,2022-07-15,Individual,Public Reports
+2022,Greg Abbott,R,Miriam Adelson,500000,Las Vegas Sands,2022-02-28,Individual,Public Reports
+2022,Beto O'Rourke,D,George Soros,1000000,Soros Fund Management,2022-06-30,Individual,Public Reports
+2022,Beto O'Rourke,D,Michael Bloomberg,500000,Bloomberg LP,2022-08-15,Individual,Public Reports
+2018,Greg Abbott,R,Kelcy Warren,1000000,Energy Transfer,2018-06-30,Individual,Public Reports
+2018,Greg Abbott,R,Bob Perry (Estate),500000,Perry Homes,2018-02-28,Individual,Public Reports

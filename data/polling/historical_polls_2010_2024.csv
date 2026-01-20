@@ -1,0 +1,106 @@
+poll_id,election_year,state,race_type,pollster,methodology,sample_size,margin_of_error,start_date,end_date,days_before_election,candidate_dem,candidate_rep,dem_pct,rep_pct,polling_margin,pollster_rating,partisan_pollster,actual_margin
+1,2010,CA,Governor,Field Poll,Live Phone,1200,2.8,2010-10-14,2010-10-17,15,Jerry Brown,Meg Whitman,52.0,39.0,13.0,A,No,13.0
+2,2010,CA,Governor,SurveyUSA,IVR,600,4.0,2010-10-25,2010-10-27,5,Jerry Brown,Meg Whitman,54.0,40.0,14.0,A-,No,13.0
+3,2010,CA,Governor,PPP,IVR,1098,3.0,2010-10-28,2010-10-30,2,Jerry Brown,Meg Whitman,51.0,41.0,10.0,B+,No,13.0
+4,2010,TX,Governor,UT/Texas Tribune,Live Phone,800,3.5,2010-10-15,2010-10-21,11,Bill White,Rick Perry,38.0,50.0,-12.0,A-,No,-12.7
+5,2010,TX,Governor,Rasmussen,IVR,500,4.5,2010-10-27,2010-10-27,5,Bill White,Rick Perry,40.0,52.0,-12.0,C+,Yes,-12.7
+6,2010,FL,Governor,Quinnipiac,Live Phone,1200,2.8,2010-10-20,2010-10-25,7,Alex Sink,Rick Scott,45.0,47.0,-2.0,A-,No,-1.2
+7,2010,FL,Governor,SurveyUSA,IVR,600,4.0,2010-10-25,2010-10-27,5,Alex Sink,Rick Scott,47.0,46.0,1.0,A-,No,-1.2
+8,2010,OH,Governor,Quinnipiac,Live Phone,1085,3.0,2010-10-19,2010-10-24,8,Ted Strickland,John Kasich,43.0,51.0,-8.0,A-,No,-2.0
+9,2010,PA,Governor,Quinnipiac,Live Phone,1100,3.0,2010-10-18,2010-10-24,8,Dan Onorato,Tom Corbett,38.0,52.0,-14.0,A-,No,-9.2
+10,2010,NY,Governor,Siena,Live Phone,804,3.5,2010-10-24,2010-10-27,5,Andrew Cuomo,Carl Paladino,60.0,32.0,28.0,A,No,28.4
+11,2010,IL,Governor,PPP,IVR,979,3.1,2010-10-30,2010-10-31,1,Pat Quinn,Bill Brady,46.0,45.0,1.0,B+,No,0.9
+12,2010,MI,Governor,EPIC-MRA,Live Phone,600,4.0,2010-10-25,2010-10-27,5,Virg Bernero,Rick Snyder,34.0,54.0,-20.0,B+,No,-18.2
+13,2010,WI,Senate,PPP,IVR,1155,2.9,2010-10-28,2010-10-30,3,Russ Feingold,Ron Johnson,45.0,52.0,-7.0,B+,No,-4.8
+14,2010,PA,Senate,Quinnipiac,Live Phone,1100,3.0,2010-10-18,2010-10-24,8,Joe Sestak,Pat Toomey,45.0,50.0,-5.0,A-,No,-2.0
+15,2010,IL,Senate,PPP,IVR,956,3.2,2010-10-29,2010-10-30,2,Alexi Giannoulias,Mark Kirk,43.0,46.0,-3.0,B+,No,-1.6
+16,2010,NV,Senate,Mason-Dixon,Live Phone,625,4.0,2010-10-25,2010-10-27,5,Harry Reid,Sharron Angle,47.0,45.0,2.0,B,No,5.6
+17,2010,CO,Senate,SurveyUSA,IVR,568,4.2,2010-10-25,2010-10-27,5,Michael Bennet,Ken Buck,47.0,46.0,1.0,A-,No,1.7
+18,2012,VA,Senate,PPP,IVR,1000,3.1,2012-10-25,2012-10-27,10,Tim Kaine,George Allen,50.0,46.0,4.0,B+,No,5.9
+19,2012,MA,Senate,PPP,IVR,1100,3.0,2012-10-26,2012-10-28,9,Elizabeth Warren,Scott Brown,52.0,44.0,8.0,B+,No,7.4
+20,2012,MT,Senate,PPP,IVR,863,3.3,2012-10-27,2012-10-28,9,Jon Tester,Denny Rehberg,49.0,47.0,2.0,B+,No,3.7
+21,2012,ND,Senate,PPP,IVR,687,3.7,2012-10-27,2012-10-28,9,Heidi Heitkamp,Rick Berg,49.0,48.0,1.0,B+,No,0.9
+22,2012,IN,Senate,Howey/DePauw,Live Phone,800,3.5,2012-10-24,2012-10-27,10,Joe Donnelly,Richard Mourdock,47.0,38.0,9.0,B-,No,5.8
+23,2012,WI,Senate,Marquette,Live Phone,713,4.1,2012-10-24,2012-10-27,10,Tammy Baldwin,Tommy Thompson,49.0,46.0,3.0,A,No,5.6
+24,2012,NC,Governor,PPP,IVR,1000,3.1,2012-10-27,2012-10-28,9,Walter Dalton,Pat McCrory,43.0,53.0,-10.0,B+,No,-11.4
+25,2012,NH,Governor,UNH,Live Phone,574,4.1,2012-10-26,2012-10-30,6,Maggie Hassan,Ovide Lamontagne,50.0,43.0,7.0,A-,No,12.3
+26,2014,CO,Senate,Quinnipiac,Live Phone,1242,2.8,2014-10-23,2014-10-27,8,Mark Udall,Cory Gardner,42.0,47.0,-5.0,A-,No,-1.9
+27,2014,IA,Senate,Des Moines Register,Live Phone,838,3.4,2014-10-25,2014-10-28,6,Bruce Braley,Joni Ernst,44.0,51.0,-7.0,A+,No,-8.5
+28,2014,NC,Senate,SurveyUSA,IVR,671,3.8,2014-10-27,2014-10-29,5,Kay Hagan,Thom Tillis,46.0,48.0,-2.0,A-,No,-1.7
+29,2014,GA,Senate,SurveyUSA,IVR,651,3.8,2014-10-27,2014-10-29,5,Michelle Nunn,David Perdue,45.0,50.0,-5.0,A-,No,-7.9
+30,2014,AK,Senate,Rasmussen,IVR,750,4.0,2014-10-28,2014-10-28,6,Mark Begich,Dan Sullivan,45.0,48.0,-3.0,C+,Yes,-2.2
+31,2014,KS,Senate,SurveyUSA,IVR,614,4.0,2014-10-27,2014-10-29,5,Greg Orman,Pat Roberts,43.0,44.0,-1.0,A-,No,-10.7
+32,2014,FL,Governor,Quinnipiac,Live Phone,1177,2.9,2014-10-22,2014-10-27,7,Charlie Crist,Rick Scott,43.0,45.0,-2.0,A-,No,-1.1
+33,2014,PA,Governor,Quinnipiac,Live Phone,1249,2.8,2014-10-22,2014-10-27,7,Tom Wolf,Tom Corbett,54.0,36.0,18.0,A-,No,9.8
+34,2014,WI,Governor,Marquette,Live Phone,1164,2.9,2014-10-23,2014-10-26,8,Mary Burke,Scott Walker,46.0,50.0,-4.0,A,No,-5.7
+35,2014,MD,Governor,Gonzales Research,Live Phone,817,3.4,2014-10-24,2014-10-27,7,Anthony Brown,Larry Hogan,47.0,43.0,4.0,C+,No,-4.2
+36,2014,IL,Governor,Tribune/WGN,Live Phone,600,4.0,2014-10-23,2014-10-27,7,Pat Quinn,Bruce Rauner,39.0,46.0,-7.0,B,No,-4.0
+37,2014,TX,Governor,UT/Texas Tribune,Live Phone,1200,2.8,2014-10-17,2014-10-26,8,Wendy Davis,Greg Abbott,36.0,50.0,-14.0,A-,No,-20.4
+38,2016,NH,Senate,UNH,Live Phone,739,3.6,2016-10-26,2016-10-31,7,Maggie Hassan,Kelly Ayotte,46.0,45.0,1.0,A-,No,0.1
+39,2016,PA,Senate,Monmouth,Live Phone,402,4.9,2016-10-27,2016-10-30,8,Katie McGinty,Pat Toomey,45.0,46.0,-1.0,A+,No,-1.5
+40,2016,NC,Senate,Monmouth,Live Phone,401,4.9,2016-10-27,2016-10-30,8,Deborah Ross,Richard Burr,45.0,47.0,-2.0,A+,No,-5.7
+41,2016,WI,Senate,Marquette,Live Phone,1255,3.0,2016-10-26,2016-10-30,8,Russ Feingold,Ron Johnson,46.0,44.0,2.0,A,No,-3.4
+42,2016,MO,Senate,Monmouth,Live Phone,402,4.9,2016-10-27,2016-10-30,8,Jason Kander,Roy Blunt,47.0,47.0,0.0,A+,No,-2.8
+43,2016,IN,Senate,Monmouth,Live Phone,402,4.9,2016-10-27,2016-10-30,8,Evan Bayh,Todd Young,42.0,44.0,-2.0,A+,No,-9.7
+44,2016,NV,Senate,Monmouth,Live Phone,404,4.9,2016-10-27,2016-10-30,8,Catherine Cortez Masto,Joe Heck,49.0,45.0,4.0,A+,No,2.4
+45,2016,NC,Governor,SurveyUSA,IVR,745,3.6,2016-10-28,2016-10-30,8,Roy Cooper,Pat McCrory,49.0,46.0,3.0,A-,No,0.2
+46,2016,IN,Governor,WTHR/Howey,Live Phone,600,4.0,2016-10-24,2016-10-26,12,John Gregg,Eric Holcomb,42.0,46.0,-4.0,B-,No,-6.0
+47,2016,WV,Governor,MetroNews,Live Phone,408,4.9,2016-10-24,2016-10-27,11,Jim Justice,Bill Cole,52.0,35.0,17.0,C,No,6.7
+48,2018,TX,Senate,UT/Texas Tribune,Live Phone,1200,2.8,2018-10-15,2018-10-23,13,Beto O'Rourke,Ted Cruz,45.0,51.0,-6.0,A-,No,-2.6
+49,2018,TX,Senate,Quinnipiac,Live Phone,807,4.1,2018-10-24,2018-10-29,7,Beto O'Rourke,Ted Cruz,47.0,51.0,-4.0,A-,No,-2.6
+50,2018,FL,Senate,Quinnipiac,Live Phone,847,4.0,2018-10-24,2018-10-28,8,Bill Nelson,Rick Scott,47.0,47.0,0.0,A-,No,-0.1
+51,2018,AZ,Senate,Monmouth,Live Phone,404,4.9,2018-10-26,2018-10-29,7,Kyrsten Sinema,Martha McSally,48.0,45.0,3.0,A+,No,2.4
+52,2018,NV,Senate,Emerson,IVR/Online,650,3.8,2018-10-28,2018-10-30,6,Jacky Rosen,Dean Heller,46.0,47.0,-1.0,B+,No,5.0
+53,2018,MT,Senate,Emerson,IVR/Online,600,4.0,2018-10-28,2018-10-30,6,Jon Tester,Matt Rosendale,48.0,46.0,2.0,B+,No,3.5
+54,2018,MO,Senate,Emerson,IVR/Online,800,3.5,2018-10-27,2018-10-29,7,Claire McCaskill,Josh Hawley,45.0,49.0,-4.0,B+,No,-5.8
+55,2018,IN,Senate,Monmouth,Live Phone,404,4.9,2018-10-25,2018-10-28,8,Joe Donnelly,Mike Braun,43.0,44.0,-1.0,A+,No,-5.9
+56,2018,FL,Governor,Quinnipiac,Live Phone,847,4.0,2018-10-24,2018-10-28,8,Andrew Gillum,Ron DeSantis,50.0,46.0,4.0,A-,No,-0.4
+57,2018,GA,Governor,Monmouth,Live Phone,403,4.9,2018-10-25,2018-10-28,8,Stacey Abrams,Brian Kemp,47.0,47.0,0.0,A+,No,-1.4
+58,2018,OH,Governor,Emerson,IVR/Online,750,3.6,2018-10-27,2018-10-30,6,Richard Cordray,Mike DeWine,46.0,48.0,-2.0,B+,No,-4.0
+59,2018,WI,Governor,Marquette,Live Phone,1000,3.6,2018-10-24,2018-10-28,8,Tony Evers,Scott Walker,50.0,46.0,4.0,A,No,1.1
+60,2018,MI,Governor,Monmouth,Live Phone,401,4.9,2018-10-25,2018-10-29,7,Gretchen Whitmer,Bill Schuette,53.0,38.0,15.0,A+,No,9.5
+61,2018,PA,Governor,Monmouth,Live Phone,402,4.9,2018-10-25,2018-10-28,8,Tom Wolf,Scott Wagner,55.0,37.0,18.0,A+,No,17.1
+62,2018,TX,Governor,UT/Texas Tribune,Live Phone,1200,2.8,2018-10-15,2018-10-23,13,Lupe Valdez,Greg Abbott,37.0,54.0,-17.0,A-,No,-13.3
+63,2020,AZ,Senate,Monmouth,Live Phone,401,4.9,2020-10-24,2020-10-27,7,Mark Kelly,Martha McSally,52.0,42.0,10.0,A+,No,2.4
+64,2020,CO,Senate,Marist,Live Phone,596,4.4,2020-10-25,2020-10-28,6,John Hickenlooper,Cory Gardner,55.0,40.0,15.0,A+,No,9.4
+65,2020,ME,Senate,Colby,Live Phone,700,3.7,2020-10-23,2020-10-27,7,Sara Gideon,Susan Collins,47.0,44.0,3.0,B,No,-8.6
+66,2020,NC,Senate,SurveyUSA,IVR/Online,821,3.8,2020-10-27,2020-10-29,5,Cal Cunningham,Thom Tillis,47.0,46.0,1.0,A-,No,-1.8
+67,2020,GA,Senate,Monmouth,Live Phone,501,4.4,2020-10-23,2020-10-27,7,Jon Ossoff,David Perdue,47.0,47.0,0.0,A+,No,-0.3
+68,2020,IA,Senate,Des Moines Register,Live Phone,814,3.4,2020-10-26,2020-10-29,5,Theresa Greenfield,Joni Ernst,46.0,48.0,-2.0,A+,No,-6.6
+69,2020,MI,Senate,Monmouth,Live Phone,501,4.4,2020-10-23,2020-10-26,8,Gary Peters,John James,49.0,44.0,5.0,A+,No,1.7
+70,2020,MT,Governor,MSU,Live Phone,503,4.4,2020-10-21,2020-10-26,8,Mike Cooney,Greg Gianforte,42.0,49.0,-7.0,B-,No,-12.3
+71,2020,NC,Governor,SurveyUSA,IVR/Online,821,3.8,2020-10-27,2020-10-29,5,Roy Cooper,Dan Forest,51.0,44.0,7.0,A-,No,4.5
+72,2020,IN,Governor,WTHR/Howey,Live Phone,600,4.0,2020-10-22,2020-10-25,9,Woody Myers,Eric Holcomb,33.0,56.0,-23.0,B-,No,-20.8
+73,2020,WA,Governor,SurveyUSA,IVR/Online,600,4.4,2020-10-25,2020-10-28,6,Jay Inslee,Loren Culp,55.0,38.0,17.0,A-,No,13.2
+74,2021,VA,Governor,Monmouth,Live Phone,601,4.0,2021-10-28,2021-10-31,2,Terry McAuliffe,Glenn Youngkin,46.0,46.0,0.0,A+,No,-1.9
+75,2021,NJ,Governor,Monmouth,Live Phone,601,4.0,2021-10-27,2021-10-31,2,Phil Murphy,Jack Ciattarelli,52.0,42.0,10.0,A+,No,3.2
+76,2022,GA,Senate,Monmouth,Live Phone,804,3.5,2022-10-27,2022-10-30,8,Raphael Warnock,Herschel Walker,49.0,45.0,4.0,A+,No,2.8
+77,2022,PA,Senate,Monmouth,Live Phone,807,3.4,2022-10-27,2022-10-30,8,John Fetterman,Mehmet Oz,49.0,44.0,5.0,A+,No,5.0
+78,2022,AZ,Senate,Monmouth,Live Phone,805,3.5,2022-10-27,2022-10-30,8,Mark Kelly,Blake Masters,51.0,43.0,8.0,A+,No,5.0
+79,2022,NV,Senate,Emerson,IVR/Online,1000,3.0,2022-10-29,2022-10-31,7,Catherine Cortez Masto,Adam Laxalt,45.0,48.0,-3.0,B+,No,0.9
+80,2022,WI,Senate,Marquette,Live Phone,813,4.0,2022-10-26,2022-10-30,8,Mandela Barnes,Ron Johnson,47.0,49.0,-2.0,A,No,-1.0
+81,2022,NH,Senate,UNH,Live Phone,909,3.3,2022-10-26,2022-10-31,7,Maggie Hassan,Don Bolduc,53.0,42.0,11.0,A-,No,9.3
+82,2022,NC,Senate,SurveyUSA,IVR/Online,884,3.7,2022-10-28,2022-10-31,7,Cheri Beasley,Ted Budd,46.0,49.0,-3.0,A-,No,-3.3
+83,2022,OH,Senate,Emerson,IVR/Online,1000,3.0,2022-10-29,2022-10-31,7,Tim Ryan,JD Vance,45.0,49.0,-4.0,B+,No,-6.1
+84,2022,PA,Governor,Monmouth,Live Phone,807,3.4,2022-10-27,2022-10-30,8,Josh Shapiro,Doug Mastriano,54.0,39.0,15.0,A+,No,14.8
+85,2022,AZ,Governor,Monmouth,Live Phone,805,3.5,2022-10-27,2022-10-30,8,Katie Hobbs,Kari Lake,47.0,48.0,-1.0,A+,No,0.7
+86,2022,GA,Governor,Monmouth,Live Phone,804,3.5,2022-10-27,2022-10-30,8,Stacey Abrams,Brian Kemp,44.0,51.0,-7.0,A+,No,-7.5
+87,2022,MI,Governor,EPIC-MRA,Live Phone,600,4.0,2022-10-26,2022-10-29,9,Gretchen Whitmer,Tudor Dixon,52.0,43.0,9.0,B+,No,10.6
+88,2022,WI,Governor,Marquette,Live Phone,813,4.0,2022-10-26,2022-10-30,8,Tony Evers,Tim Michels,48.0,48.0,0.0,A,No,3.4
+89,2022,NV,Governor,Emerson,IVR/Online,1000,3.0,2022-10-29,2022-10-31,7,Steve Sisolak,Joe Lombardo,45.0,48.0,-3.0,B+,No,-1.5
+90,2022,NY,Governor,Siena,Live Phone,803,3.9,2022-10-30,2022-11-01,7,Kathy Hochul,Lee Zeldin,52.0,45.0,7.0,A,No,6.4
+91,2022,TX,Governor,UT/Texas Tribune,Live Phone,1200,2.8,2022-10-14,2022-10-23,14,Beto O'Rourke,Greg Abbott,42.0,52.0,-10.0,A-,No,-11.0
+92,2022,OR,Governor,SurveyUSA,IVR/Online,700,4.2,2022-10-27,2022-10-30,8,Tina Kotek,Christine Drazan,43.0,42.0,1.0,A-,No,3.5
+93,2024,MT,Senate,Emerson,IVR/Online,850,3.4,2024-10-28,2024-10-30,6,Jon Tester,Tim Sheehy,44.0,50.0,-6.0,B+,No,-8.0
+94,2024,OH,Senate,Emerson,IVR/Online,1000,3.1,2024-10-27,2024-10-29,7,Sherrod Brown,Bernie Moreno,47.0,47.0,0.0,B+,No,-3.5
+95,2024,PA,Senate,Monmouth,Live Phone,802,3.5,2024-10-24,2024-10-28,8,Bob Casey,Dave McCormick,48.0,46.0,2.0,A+,No,-0.5
+96,2024,WI,Senate,Marquette,Live Phone,871,3.8,2024-10-23,2024-10-27,9,Tammy Baldwin,Eric Hovde,50.0,47.0,3.0,A,No,1.0
+97,2024,MI,Senate,EPIC-MRA,Live Phone,600,4.0,2024-10-24,2024-10-27,9,Elissa Slotkin,Mike Rogers,47.0,45.0,2.0,B+,No,1.5
+98,2024,AZ,Senate,Monmouth,Live Phone,803,3.5,2024-10-24,2024-10-28,8,Ruben Gallego,Kari Lake,51.0,44.0,7.0,A+,No,2.0
+99,2024,NV,Senate,Emerson,IVR/Online,875,3.3,2024-10-27,2024-10-29,7,Jacky Rosen,Sam Brown,48.0,46.0,2.0,B+,No,3.0
+100,2024,TX,Senate,UT/Texas Tribune,Live Phone,1200,2.8,2024-10-14,2024-10-22,14,Colin Allred,Ted Cruz,44.0,50.0,-6.0,A-,No,-8.0
+101,2024,NC,Governor,SurveyUSA,IVR/Online,900,3.6,2024-10-27,2024-10-30,6,Josh Stein,Mark Robinson,52.0,40.0,12.0,A-,No,15.0
+102,2024,WA,Governor,SurveyUSA,IVR/Online,650,4.3,2024-10-25,2024-10-28,8,Bob Ferguson,Dave Reichert,50.0,43.0,7.0,A-,No,6.5
+103,2024,IN,Governor,WTHR/Howey,Live Phone,600,4.0,2024-10-21,2024-10-24,12,Jennifer McCormick,Mike Braun,42.0,51.0,-9.0,B-,No,-11.0
+104,2024,NH,Governor,UNH,Live Phone,850,3.4,2024-10-25,2024-10-30,6,Joyce Craig,Kelly Ayotte,46.0,49.0,-3.0,A-,No,-5.0
+105,2024,NC,Senate,Monmouth,Live Phone,803,3.5,2024-10-24,2024-10-28,8,Cheri Beasley,Ted Budd,47.0,49.0,-2.0,A+,No,-3.5
