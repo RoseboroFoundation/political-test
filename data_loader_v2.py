@@ -811,7 +811,111 @@ def load_race_data(
     }
 
 
+# =============================================================================
+# DIRECT CSV LOADERS FOR PRE-COMPILED DATA
+# =============================================================================
+
+def load_training_dataset(data_dir: str = './data') -> pd.DataFrame:
+    """
+    Load the pre-compiled labeled training dataset.
+
+    This is the recommended way to load training data for the hierarchical model.
+    The dataset includes 500+ historical races with all features merged.
+
+    Args:
+        data_dir: Base data directory
+
+    Returns:
+        DataFrame with training data ready for model.fit()
+    """
+    path = Path(data_dir) / 'training' / 'labeled_training_dataset.csv'
+    if not path.exists():
+        raise FileNotFoundError(f"Training dataset not found at {path}")
+
+    df = pd.read_csv(path)
+    logger.info(f"Loaded training dataset: {len(df)} races")
+    return df
+
+
+def load_election_results(
+    race_type: str = 'all',
+    data_dir: str = './data'
+) -> pd.DataFrame:
+    """
+    Load pre-compiled election results.
+
+    Args:
+        race_type: 'governor', 'senate', 'house', or 'all'
+        data_dir: Base data directory
+
+    Returns:
+        DataFrame with election results
+    """
+    data_path = Path(data_dir) / 'elections'
+
+    files = {
+        'governor': 'governor_results_2010_2024.csv',
+        'senate': 'senate_results_2010_2024.csv',
+        'house': 'house_competitive_2010_2024.csv'
+    }
+
+    if race_type == 'all':
+        dfs = []
+        for rt, filename in files.items():
+            filepath = data_path / filename
+            if filepath.exists():
+                df = pd.read_csv(filepath)
+                df['race_type'] = rt.title() if rt != 'house' else 'House'
+                dfs.append(df)
+        return pd.concat(dfs, ignore_index=True)
+    else:
+        filename = files.get(race_type.lower())
+        if not filename:
+            raise ValueError(f"Unknown race type: {race_type}")
+        filepath = data_path / filename
+        return pd.read_csv(filepath)
+
+
+def load_polling_data(data_dir: str = './data') -> pd.DataFrame:
+    """Load pre-compiled historical polling data."""
+    path = Path(data_dir) / 'polling' / 'historical_polls_2010_2024.csv'
+    return pd.read_csv(path)
+
+
+def load_economic_data(
+    level: str = 'national',
+    data_dir: str = './data'
+) -> pd.DataFrame:
+    """
+    Load economic indicator data.
+
+    Args:
+        level: 'national' or 'state'
+        data_dir: Base data directory
+    """
+    data_path = Path(data_dir) / 'economic'
+    if level == 'national':
+        return pd.read_csv(data_path / 'macroeconomic_indicators_2010_2024.csv')
+    else:
+        return pd.read_csv(data_path / 'state_economic_indicators_2010_2024.csv')
+
+
+def load_campaign_finance(data_dir: str = './data') -> pd.DataFrame:
+    """Load pre-compiled campaign finance data."""
+    path = Path(data_dir) / 'finance' / 'campaign_finance_2010_2024.csv'
+    return pd.read_csv(path)
+
+
 if __name__ == "__main__":
+    # Example: Load pre-compiled training dataset (RECOMMENDED)
+    training_df = load_training_dataset()
+    print(f"Training dataset: {len(training_df)} races")
+    print(f"Columns: {list(training_df.columns)}")
+
+    # Example: Load specific election results
+    governor_results = load_election_results('governor')
+    print(f"Governor races: {len(governor_results)}")
+
     # Example: Load Texas Governor data (like original, but generalized)
     data = load_race_data(
         state='TX',
@@ -819,8 +923,3 @@ if __name__ == "__main__":
         election_years=[2010, 2014, 2018, 2022]
     )
     print(f"Loaded data for {data['config'].race_id}")
-
-    # Example: Build training dataset
-    aggregator = HistoricalDataAggregator(years=[2018, 2020, 2022])
-    training_df = aggregator.build_training_dataset(include_house=False)
-    print(f"Training dataset: {len(training_df)} races")
