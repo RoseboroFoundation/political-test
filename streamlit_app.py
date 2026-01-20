@@ -27,6 +27,10 @@ from typing import Dict, Any, Optional
 from Model import StatisticalModelManager, PredictiveModel
 from visualizations import Visualizer, COLORS
 from ETL import ETLPipeline, DATA_DICTIONARY
+from data_loader_v2 import (
+    load_training_dataset, load_election_results,
+    load_polling_data, load_economic_data, load_campaign_finance
+)
 
 # =============================================================================
 # PAGE CONFIGURATION
@@ -1472,7 +1476,171 @@ def render_model_tab(manager, viz):
 
 
 # =============================================================================
-# TAB 3: ACADEMIC
+# TAB 3: HISTORICAL DATA (Multi-State/Multi-Race)
+# =============================================================================
+def render_historical_tab():
+    """Render the Historical Data tab with expanded multi-state results."""
+    st.markdown('<div class="tab-header">Historical Election Data (2010-2024)</div>',
+                unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="info-box">
+    <strong>Expanded Training Dataset:</strong> This section displays historical election results
+    from Governor, Senate, and competitive House races across all 50 states (2010-2024).
+    This data is used to train the hierarchical prediction model.
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Load historical data
+    try:
+        training_df = load_training_dataset()
+
+        # Summary metrics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("Total Races", len(training_df))
+        with col2:
+            st.metric("Election Cycles", len(training_df['election_year'].unique()))
+        with col3:
+            st.metric("States Covered", len(training_df['state'].unique()))
+        with col4:
+            dem_wins = (training_df['dem_winner'] == 1).sum()
+            st.metric("D/R Win Split", f"{dem_wins}/{len(training_df)-dem_wins}")
+
+        # Sub-tabs for different views
+        hist_tabs = st.tabs(["Training Dataset", "By Race Type", "Model Performance", "Economic Factors"])
+
+        with hist_tabs[0]:
+            st.subheader("Labeled Training Dataset")
+
+            # Filters
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                years = sorted(training_df['election_year'].unique())
+                selected_year = st.selectbox("Filter by Year", ["All"] + [str(y) for y in years])
+            with col2:
+                race_types = training_df['race_type'].unique().tolist()
+                selected_race = st.selectbox("Filter by Race Type", ["All"] + race_types)
+            with col3:
+                states = sorted(training_df['state'].unique())
+                selected_state = st.selectbox("Filter by State", ["All"] + states)
+
+            # Apply filters
+            filtered_df = training_df.copy()
+            if selected_year != "All":
+                filtered_df = filtered_df[filtered_df['election_year'] == int(selected_year)]
+            if selected_race != "All":
+                filtered_df = filtered_df[filtered_df['race_type'] == selected_race]
+            if selected_state != "All":
+                filtered_df = filtered_df[filtered_df['state'] == selected_state]
+
+            # Display key columns
+            display_cols = ['race_id', 'election_year', 'state', 'race_type',
+                          'dem_candidate', 'rep_candidate', 'actual_margin', 'dem_winner',
+                          'partisan_lean', 'polling_margin', 'fundraising_advantage']
+            st.dataframe(filtered_df[display_cols], use_container_width=True, hide_index=True)
+
+            st.caption(f"Showing {len(filtered_df)} of {len(training_df)} races")
+
+        with hist_tabs[1]:
+            st.subheader("Results by Race Type")
+
+            # Load full election results
+            all_results = load_election_results('all')
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.markdown("**Governor Races**")
+                gov_df = all_results[all_results['race_type'] == 'Governor']
+                if len(gov_df) > 0:
+                    st.metric("Total Governor Races", len(gov_df))
+                    # Show recent results
+                    recent_gov = gov_df.sort_values('election_year', ascending=False).head(10)
+                    st.dataframe(recent_gov[['election_year', 'state', 'winner', 'margin_pct']].head(10),
+                               use_container_width=True, hide_index=True)
+
+            with col2:
+                st.markdown("**Senate Races**")
+                sen_df = all_results[all_results['race_type'] == 'Senate']
+                if len(sen_df) > 0:
+                    st.metric("Total Senate Races", len(sen_df))
+                    recent_sen = sen_df.sort_values('election_year', ascending=False).head(10)
+                    st.dataframe(recent_sen[['election_year', 'state', 'winner', 'margin_pct']].head(10),
+                               use_container_width=True, hide_index=True)
+
+            st.markdown("**Competitive House Races**")
+            house_df = all_results[all_results['race_type'] == 'House']
+            if len(house_df) > 0:
+                st.metric("Total Competitive House Races", len(house_df))
+
+        with hist_tabs[2]:
+            st.subheader("Model Performance on Historical Data")
+
+            from sklearn.linear_model import Ridge
+
+            # Prepare features
+            feature_cols = ['partisan_lean', 'polling_margin', 'fundraising_advantage',
+                          'national_unemployment', 'midterm_indicator', 'incumbent_running']
+
+            df_model = training_df.dropna(subset=['actual_margin', 'partisan_lean'])
+            X = df_model[feature_cols].fillna(0).values
+            y = df_model['actual_margin'].values
+
+            # Fit model
+            model = Ridge(alpha=1.0)
+            model.fit(X, y)
+            predictions = model.predict(X)
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                r2 = model.score(X, y)
+                st.metric("R² Score", f"{r2:.3f}")
+            with col2:
+                mae = np.mean(np.abs(y - predictions))
+                st.metric("Mean Absolute Error", f"{mae:.1f} pts")
+            with col3:
+                correct = ((predictions > 0) == (y > 0)).sum()
+                st.metric("Winner Prediction Accuracy", f"{100*correct/len(y):.1f}%")
+
+            # Coefficients
+            st.markdown("**Feature Coefficients:**")
+            coef_df = pd.DataFrame({
+                'Feature': feature_cols,
+                'Coefficient': model.coef_
+            }).sort_values('Coefficient', key=abs, ascending=False)
+            st.dataframe(coef_df, use_container_width=True, hide_index=True)
+
+            # Predictions vs Actual
+            st.markdown("**Predictions vs Actual (Sample):**")
+            results_df = pd.DataFrame({
+                'Race': df_model['race_id'].values[:15],
+                'Actual Margin': y[:15],
+                'Predicted Margin': predictions[:15],
+                'Error': (predictions - y)[:15]
+            })
+            st.dataframe(results_df, use_container_width=True, hide_index=True)
+
+        with hist_tabs[3]:
+            st.subheader("Economic Indicators")
+
+            econ_df = load_economic_data('national')
+
+            st.markdown("**National Economic Indicators by Election Year:**")
+            # Filter to election years
+            election_econ = econ_df[econ_df['election_year'] == 1]
+            st.dataframe(election_econ[['year', 'quarter', 'national_gdp_growth',
+                                       'national_unemployment', 'national_inflation_cpi',
+                                       'consumer_confidence', 'presidential_approval']],
+                        use_container_width=True, hide_index=True)
+
+    except Exception as e:
+        st.error(f"Error loading historical data: {e}")
+        st.info("Make sure the data files exist in the data/ directory.")
+
+
+# =============================================================================
+# TAB 4: ACADEMIC
 # =============================================================================
 def render_academic_tab(manager):
     """Render the Academic tab with raw data and code."""
@@ -2046,9 +2214,10 @@ def main():
         return
 
     # Create tabs
-    tab1, tab2, tab3 = st.tabs([
+    tab1, tab2, tab3, tab4 = st.tabs([
         "Client Race Results",
         "Model Test Results",
+        "Historical Data",
         "Academic"
     ])
 
@@ -2059,6 +2228,9 @@ def main():
         render_model_tab(manager, viz)
 
     with tab3:
+        render_historical_tab()
+
+    with tab4:
         render_academic_tab(manager)
 
     # Footer
