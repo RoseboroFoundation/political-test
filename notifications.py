@@ -2,21 +2,22 @@
 """
 Notification System for Texas Governor Race Analysis
 Sends alerts when significant changes are detected.
+Uses APNs as primary channel, Pushover as fallback.
 """
 
 import os
+import sys
 import json
-import requests
 from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
 load_dotenv()
+load_dotenv('/Users/administrator/Services/roseboro-backend/.env')
 
-# Pushover Configuration
-PUSHOVER_USER_KEY = os.getenv('PUSHOVER_USER_KEY', '')
-PUSHOVER_APP_TOKEN = os.getenv('PUSHOVER_APP_TOKEN', '')
-NOTIFICATION_EMAIL = os.getenv('NOTIFICATION_EMAIL', '')
+# Import APNs-first send_pushover from roseboro-backend
+sys.path.insert(0, '/Users/administrator/Services/roseboro-backend')
+from utils.pushover import send_pushover
 
 DATA_DIR = Path(__file__).parent / 'data'
 STATE_FILE = Path(__file__).parent / 'model_state.json'
@@ -147,79 +148,34 @@ def detect_changes(previous, current):
 
 
 def send_pushover_notification(changes, current_state):
-    """Send Pushover notification about detected changes."""
-    if not PUSHOVER_USER_KEY or not PUSHOVER_APP_TOKEN:
-        print("Pushover not configured - skipping notification")
-        return False
-
+    """Send notification about detected changes (APNs primary, Pushover fallback)."""
     high_severity = [c for c in changes if c.get('severity') == 'high']
     is_urgent = len(high_severity) > 0
 
-    # Build notification title
     title = f"{'URGENT: ' if is_urgent else ''}TX Governor Race Alert"
 
-    # Build message body
     lines = [f"{len(changes)} change(s) detected:\n"]
-
     for change in changes:
         severity_marker = "!!!" if change['severity'] == 'high' else "!" if change['severity'] == 'medium' else "-"
         lines.append(f"{severity_marker} {change['type']}: {change['message']}")
 
-    lines.append("")
-
-    # Current state
-    pred = current_state.get('prediction', {})
-    poll = current_state.get('polling', {})
-
-    # Democratic Primary - Always show full field
-    lines.append("D PRIMARY (Mar 3):")
-    lines.append("  Hinojosa: 52-58% (frontrunner)")
-    lines.append("  Bell: 12-15%")
-    lines.append("  Cole: 8-10%")
-    lines.append("  +5 others: <5% each")
-    lines.append("  [White dropped out, endorsed Hinojosa]")
-
-    # Republican Primary
-    lines.append("")
-    lines.append("R PRIMARY (Mar 3):")
-    lines.append("  Abbott: 85-90%")
-
-    # General election
-    lines.append("")
-    lines.append("GENERAL (Nov 3):")
-    lines.append(f"  Abbott (R) wins R+{pred.get('margin_low', 12)}-{pred.get('margin_high', 18)}%")
-    lines.append(f"  Polling: Abbott {poll.get('abbott', 50)}% - Hinojosa {poll.get('hinojosa', 42)}%")
-
     message = "\n".join(lines)
-
-    # Set priority: 1 for high priority (urgent), 0 for normal
     priority = 1 if is_urgent else 0
 
     try:
-        response = requests.post(
-            "https://api.pushover.net/1/messages.json",
-            data={
-                "token": PUSHOVER_APP_TOKEN,
-                "user": PUSHOVER_USER_KEY,
-                "title": title,
-                "message": message,
-                "priority": priority,
-                "url": "http://207.254.38.26:8502",
-                "url_title": "View Dashboard"
-            },
-            timeout=30
+        result = send_pushover(
+            title=title,
+            message=message,
+            priority=priority,
         )
-
-        result = response.json()
-        if result.get('status') == 1:
-            print(f"Pushover notification sent successfully")
+        if result.get("success"):
+            print(f"Notification sent successfully (APNs/Pushover)")
             return True
         else:
-            print(f"Pushover API error: {result.get('errors', 'Unknown error')}")
+            print(f"Notification failed: {result.get('error')}")
             return False
-
     except Exception as e:
-        print(f"Failed to send Pushover notification: {e}")
+        print(f"Failed to send notification: {e}")
         return False
 
 
