@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Notification System for Texas Governor Race Analysis
+Notification System for Alabama Senate District 25 Analysis
 Sends alerts when significant changes are detected.
 Uses APNs as primary channel, Pushover as fallback.
 """
@@ -152,7 +152,7 @@ def send_pushover_notification(changes, current_state):
     high_severity = [c for c in changes if c.get('severity') == 'high']
     is_urgent = len(high_severity) > 0
 
-    title = f"{'URGENT: ' if is_urgent else ''}TX Governor Race Alert"
+    title = f"{'URGENT: ' if is_urgent else ''}AL Senate District Alert"
 
     lines = [f"{len(changes)} change(s) detected:\n"]
     for change in changes:
