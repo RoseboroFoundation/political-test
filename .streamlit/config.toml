@@ -7,4 +7,11 @@ textColor = "#c9d1d9"
 font = "sans serif"
 
 [server]
-port = 8502
+headless = true
+port = 8503
+enableCORS = false
+enableXsrfProtection = false
+baseUrlPath = "texas"
+
+[browser]
+gatherUsageStats = false

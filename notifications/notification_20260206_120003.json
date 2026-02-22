@@ -1,0 +1,47 @@
+{
+  "timestamp": "2026-02-06T12:00:03.017081",
+  "changes": [
+    {
+      "type": "MARKET_VOLATILITY",
+      "message": "VIX increased by 3.1 points (now 21.77)",
+      "severity": "medium",
+      "previous": 18.64,
+      "current": 21.77
+    }
+  ],
+  "current_state": {
+    "polling": {
+      "abbott": 50,
+      "hinojosa": 42,
+      "margin": 8,
+      "poll_count": 5
+    },
+    "prediction": {
+      "winner": "Abbott",
+      "margin_low": 12,
+      "margin_high": 18,
+      "win_probability": 99
+    },
+    "primary": {
+      "republican": {
+        "abbott": "85-90",
+        "brooks": "3",
+        "goloby": "2"
+      },
+      "democratic": {
+        "hinojosa": "52-58",
+        "bell": "12-15",
+        "cole": "8-10"
+      }
+    },
+    "economic": {
+      "vix": 21.77,
+      "unemployment": 4.5,
+      "inflation": 2.8
+    },
+    "finance": {
+      "abbott_total": 105700000,
+      "hinojosa_total": 1300000
+    }
+  }
+}

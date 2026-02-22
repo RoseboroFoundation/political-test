@@ -345,7 +345,8 @@ def get_current_model_state():
     }
 
 
-if __name__ == "__main__":
+def main():
+    """Run the daily update pipeline."""
     print(f"Starting daily update at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("-" * 60)
 
@@ -376,3 +377,46 @@ if __name__ == "__main__":
     print("\n" + text_briefing)
 
     print("\nDaily update complete.")
+
+
+if __name__ == "__main__":
+    import signal
+    import time
+    import logging
+
+    import schedule
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - texas-governor - %(levelname)s - %(message)s'
+    )
+    _logger = logging.getLogger("texas-governor")
+
+    _running = True
+
+    def _handle_signal(signum, frame):
+        global _running
+        _logger.info(f"Received {signal.Signals(signum).name}, shutting down...")
+        _running = False
+
+    signal.signal(signal.SIGTERM, _handle_signal)
+    signal.signal(signal.SIGINT, _handle_signal)
+
+    # Schedule at 7 AM, 12 PM, 6 PM CT daily
+    schedule.every().day.at("07:00").do(main)
+    schedule.every().day.at("12:00").do(main)
+    schedule.every().day.at("18:00").do(main)
+
+    _logger.info("Texas governor daemon started — scheduled for 7 AM, 12 PM, 6 PM CT")
+
+    # Run once on startup
+    try:
+        main()
+    except Exception:
+        _logger.exception("Initial run failed")
+
+    while _running:
+        schedule.run_pending()
+        time.sleep(10)
+
+    _logger.info("Texas governor daemon stopped")
