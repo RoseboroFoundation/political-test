@@ -104,3 +104,9 @@ poll_id,election_year,state,race_type,pollster,methodology,sample_size,margin_of
 103,2024,IN,Governor,WTHR/Howey,Live Phone,600,4.0,2024-10-21,2024-10-24,12,Jennifer McCormick,Mike Braun,42.0,51.0,-9.0,B-,No,-11.0
 104,2024,NH,Governor,UNH,Live Phone,850,3.4,2024-10-25,2024-10-30,6,Joyce Craig,Kelly Ayotte,46.0,49.0,-3.0,A-,No,-5.0
 105,2024,NC,Senate,Monmouth,Live Phone,803,3.5,2024-10-24,2024-10-28,8,Cheri Beasley,Ted Budd,47.0,49.0,-2.0,A+,No,-3.5
+106,2026,TX,Governor,Emerson College,Live Phone,1165,2.8,2026-01-10,2026-01-12,296,Hinojosa,Abbott,42.0,50.0,-8.0,A-,No,
+107,2026,TX,Governor,University of Houston,Live Phone,1502,2.53,2026-01-20,2026-01-31,276,Hinojosa,Abbott,42.0,49.0,-7.0,A,No,
+108,2026,TX,Governor,University of Texas,Online,278,5.9,2026-02-23,2026-02-25,251,Hinojosa,Abbott,42.0,49.0,-7.0,A-,No,
+109,2026,TX,Governor,Blueprint Polling,Online,472,4.5,2026-02-24,2026-02-26,250,Hinojosa,Abbott,43.0,50.0,-7.0,B+,No,
+110,2026,TX,Governor,UT-Tyler,Live Phone,451,4.2,2026-02-25,2026-02-27,249,Hinojosa,Abbott,39.0,51.0,-12.0,B+,No,
+111,2026,TX,Governor,YouGov,Online,2427,2.7,2026-02-28,2026-03-02,246,Hinojosa,Abbott,42.0,49.0,-7.0,B,No,

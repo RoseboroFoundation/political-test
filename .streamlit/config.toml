@@ -11,7 +11,7 @@ headless = true
 port = 8503
 enableCORS = false
 enableXsrfProtection = false
-baseUrlPath = "texas"
+baseUrlPath = "texasgovernordashboard"
 
 [browser]
 gatherUsageStats = false

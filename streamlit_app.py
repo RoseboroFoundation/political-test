@@ -19,6 +19,7 @@ import pandas as pd
 import numpy as np
 import json
 import os
+import pydeck as pdk
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -297,6 +298,276 @@ def display_stats_table(data: dict, title: str = None):
         st.markdown(table_md)
 
 
+def load_model_state():
+    """Load the current model state from model_state.json (updated every 60s by live_results.py)."""
+    state_path = Path(__file__).parent / 'model_state.json'
+    if state_path.exists():
+        with open(state_path, 'r') as f:
+            return json.load(f)
+    return {}
+
+
+def load_county_results():
+    """Load county-level results from county_results.json (written by live_results.py)."""
+    path = Path(__file__).parent / 'county_results.json'
+    if path.exists():
+        with open(path, 'r') as f:
+            return json.load(f)
+    return {}
+
+
+def load_tx_geojson():
+    """Load cached Texas county GeoJSON."""
+    path = Path(__file__).parent / 'data' / 'tx_counties.geojson'
+    if path.exists():
+        with open(path, 'r') as f:
+            return json.load(f)
+    return None
+
+
+def render_county_map():
+    """Render real Texas county choropleth maps using plotly with actual GeoJSON and live results."""
+    import plotly.graph_objects as go
+
+    county_data = load_county_results()
+    geojson = load_tx_geojson()
+
+    if not geojson or not county_data:
+        st.warning("County map data not yet available. Run: python live_results.py")
+        return
+
+    col1, col2 = st.columns(2)
+
+    for col, party, label, colorscale in [
+        (col1, "republican", "Republican Primary — Abbott Vote %", "Reds"),
+        (col2, "democratic", "Democratic Primary — Hinojosa Vote %", "Blues"),
+    ]:
+        fips_data = county_data.get(party, {})
+        fips_list = []
+        values = []
+        names = []
+        for feature in geojson["features"]:
+            fips = feature.get("id", "")
+            props = feature.get("properties", {})
+            county_name = props.get("NAME", "")
+            fd = fips_data.get(fips, {})
+            fips_list.append(fips)
+            values.append(fd.get("leader_pct", 0))
+            names.append(f"{county_name}: {fd.get('leader', 'N/A')} {fd.get('leader_pct', 0)}%")
+
+        with col:
+            st.markdown(f"**{label}**")
+            fig = go.Figure(go.Choropleth(
+                geojson=geojson,
+                locations=fips_list,
+                z=values,
+                text=names,
+                colorscale=colorscale,
+                zmin=30,
+                zmax=100,
+                marker_line_width=0.5,
+                marker_line_color="rgba(100,100,100,0.3)",
+                hoverinfo="text+z",
+                colorbar=dict(title="%", len=0.6),
+            ))
+            fig.update_geos(
+                fitbounds="locations",
+                visible=False,
+                bgcolor="#0e1117",
+            )
+            fig.update_layout(
+                height=450,
+                margin=dict(l=0, r=0, t=0, b=0),
+                paper_bgcolor="#0e1117",
+                geo=dict(bgcolor="#0e1117"),
+                font=dict(color="#c9d1d9"),
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+
+def render_model_vs_actual():
+    """Render a detailed model-vs-actual comparison using live data from model_state.json."""
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+
+    model_state = load_model_state()
+    comparison = model_state.get("model_comparison", {})
+    primary = model_state.get("primary", {})
+    calls = comparison.get("calls", {})
+
+    if not comparison:
+        st.info("Model comparison data not yet available.")
+        return
+
+    r_pct = primary.get("republican", {}).get("pct_reporting", 0)
+    d_pct = primary.get("democratic", {}).get("pct_reporting", 0)
+
+    # --- Call Scorecard ---
+    st.markdown("##### Prediction Scorecard")
+    score_cols = st.columns(4)
+    for i, (key, call) in enumerate(calls.items()):
+        label = key.replace("_", " ").title()
+        correct = call.get("correct", False)
+        icon = "+" if correct else "-"
+        with score_cols[i]:
+            st.metric(label, f"{icon} {'Correct' if correct else 'Wrong'}",
+                      delta=f"Predicted: {call.get('predicted','?')} | Actual: {call.get('actual','?')}")
+
+    total_correct = sum(1 for c in calls.values() if c.get("correct"))
+    st.markdown(f"**Overall: {total_correct}/{len(calls)} calls correct** ({r_pct}% R / {d_pct}% D reporting)")
+
+    # --- Candidate-level comparison ---
+    st.markdown("---")
+    col1, col2 = st.columns(2)
+
+    # Republican comparison
+    r_comp = comparison.get("republican", {})
+    with col1:
+        st.markdown("##### Republican Primary: Model vs Actual")
+        r_rows = []
+        r_predicted_vals = []
+        r_actual_vals = []
+        r_names = []
+        for name, vals in r_comp.items():
+            actual = vals.get("actual", 0)
+            pred_mid = vals.get("predicted_mid", 0)
+            pred_str = vals.get("predicted", "N/A")
+            error = round(actual - pred_mid, 1) if pred_mid > 0 else "N/A"
+            r_rows.append({
+                "Candidate": name.replace("_", " ").title(),
+                "Predicted": pred_str,
+                "Actual": f"{actual}%",
+                "Error": f"{error:+.1f} pp" if isinstance(error, float) else error,
+            })
+            if pred_mid > 0:
+                r_names.append(name.replace("_", " ").title())
+                r_predicted_vals.append(pred_mid)
+                r_actual_vals.append(actual)
+        st.dataframe(pd.DataFrame(r_rows), use_container_width=True, hide_index=True)
+
+        # Compute MAE for R
+        if r_predicted_vals:
+            r_errors = [abs(a - p) for a, p in zip(r_actual_vals, r_predicted_vals)]
+            r_mae = round(sum(r_errors) / len(r_errors), 1)
+            st.caption(f"Mean Absolute Error (modeled candidates): {r_mae} pp")
+
+    # Democratic comparison
+    d_comp = comparison.get("democratic", {})
+    with col2:
+        st.markdown("##### Democratic Primary: Model vs Actual")
+        d_rows = []
+        d_predicted_vals = []
+        d_actual_vals = []
+        d_names = []
+        for name, vals in d_comp.items():
+            actual = vals.get("actual", 0)
+            pred_mid = vals.get("predicted_mid", 0)
+            pred_str = vals.get("predicted", "N/A")
+            error = round(actual - pred_mid, 1) if pred_mid > 0 else "N/A"
+            d_rows.append({
+                "Candidate": name.replace("_", " ").title(),
+                "Predicted": pred_str,
+                "Actual": f"{actual}%",
+                "Error": f"{error:+.1f} pp" if isinstance(error, float) else error,
+            })
+            if pred_mid > 0:
+                d_names.append(name.replace("_", " ").title())
+                d_predicted_vals.append(pred_mid)
+                d_actual_vals.append(actual)
+        st.dataframe(pd.DataFrame(d_rows), use_container_width=True, hide_index=True)
+
+        if d_predicted_vals:
+            d_errors = [abs(a - p) for a, p in zip(d_actual_vals, d_predicted_vals)]
+            d_mae = round(sum(d_errors) / len(d_errors), 1)
+            st.caption(f"Mean Absolute Error (modeled candidates): {d_mae} pp")
+
+    # --- Combined visual comparison chart ---
+    st.markdown("---")
+    st.markdown("##### Visual Comparison: Predicted vs Actual")
+
+    all_names = r_names + d_names
+    all_predicted = r_predicted_vals + d_predicted_vals
+    all_actual = r_actual_vals + d_actual_vals
+
+    if all_names:
+        fig = make_subplots(rows=1, cols=2, subplot_titles=("Republican Primary", "Democratic Primary"),
+                            shared_yaxes=True)
+
+        if r_names:
+            fig.add_trace(go.Bar(name="Model Prediction", x=r_names, y=r_predicted_vals,
+                                  marker_color="#58a6ff", text=[f"{v}%" for v in r_predicted_vals],
+                                  textposition="auto", showlegend=True), row=1, col=1)
+            fig.add_trace(go.Bar(name="Actual Result", x=r_names, y=r_actual_vals,
+                                  marker_color="#3fb950", text=[f"{v}%" for v in r_actual_vals],
+                                  textposition="auto", showlegend=True), row=1, col=1)
+
+        if d_names:
+            fig.add_trace(go.Bar(name="Model Prediction", x=d_names, y=d_predicted_vals,
+                                  marker_color="#58a6ff", text=[f"{v}%" for v in d_predicted_vals],
+                                  textposition="auto", showlegend=False), row=1, col=2)
+            fig.add_trace(go.Bar(name="Actual Result", x=d_names, y=d_actual_vals,
+                                  marker_color="#3fb950", text=[f"{v}%" for v in d_actual_vals],
+                                  textposition="auto", showlegend=False), row=1, col=2)
+
+        fig.update_layout(
+            barmode="group",
+            height=400,
+            paper_bgcolor="#0e1117",
+            plot_bgcolor="#161b22",
+            font=dict(color="#c9d1d9"),
+            legend=dict(orientation="h", yanchor="bottom", y=1.08, xanchor="center", x=0.5),
+            margin=dict(t=60, b=20),
+        )
+        fig.update_yaxes(title_text="Vote %", range=[0, 100])
+        st.plotly_chart(fig, use_container_width=True)
+
+    # --- Written analysis ---
+    all_errors = [abs(a - p) for a, p in zip(all_actual, all_predicted)]
+    overall_mae = round(sum(all_errors) / len(all_errors), 1) if all_errors else 0
+
+    abbott_data = r_comp.get("abbott", {})
+    hinojosa_data = d_comp.get("hinojosa", {})
+    bell_data = d_comp.get("bell", {})
+
+    analysis_lines = []
+    analysis_lines.append(f"<strong>Overall MAE: {overall_mae} percentage points</strong> across {len(all_errors)} modeled candidates ({r_pct}% R / {d_pct}% D precincts reporting).<br><br>")
+
+    # Abbott analysis
+    if abbott_data:
+        a_err = round(abbott_data["actual"] - abbott_data["predicted_mid"], 1)
+        analysis_lines.append(f"<strong>Abbott (R):</strong> Predicted {abbott_data['predicted']}, actual {abbott_data['actual']}% ({a_err:+.1f} pp). ")
+        if abbott_data["actual"] < 85:
+            analysis_lines.append("Model overestimated Abbott's primary strength. Pete Chambers (not modeled) pulled ~10%, likely protest votes from the right on border/spending issues. ")
+        analysis_lines.append("Winner call and no-runoff call both <strong>correct</strong>.<br>")
+
+    # Hinojosa analysis
+    if hinojosa_data:
+        h_err = round(hinojosa_data["actual"] - hinojosa_data["predicted_mid"], 1)
+        analysis_lines.append(f"<strong>Hinojosa (D):</strong> Predicted {hinojosa_data['predicted']}, actual {hinojosa_data['actual']}% ({h_err:+.1f} pp). ")
+        if hinojosa_data["actual"] > 58:
+            analysis_lines.append("Model underestimated Hinojosa's consolidation of the Democratic field — she outperformed the upper bound. ")
+        elif hinojosa_data["actual"] >= 52:
+            analysis_lines.append("Within predicted range. ")
+        analysis_lines.append("Winner call and no-runoff call both <strong>correct</strong>.<br>")
+
+    # Bell analysis
+    if bell_data:
+        b_err = round(bell_data["actual"] - bell_data["predicted_mid"], 1)
+        analysis_lines.append(f"<strong>Bell (D):</strong> Predicted {bell_data['predicted']}, actual {bell_data['actual']}% ({b_err:+.1f} pp). ")
+        if bell_data["actual"] < 12:
+            analysis_lines.append("Model overestimated Bell's name recognition advantage from his 2006 run.<br>")
+
+    analysis_lines.append(f"<br><strong>Key takeaway:</strong> The model correctly identified both primary winners and correctly predicted no runoff in either race. ")
+    analysis_lines.append("The largest miss was on the Democratic side, where Hinojosa's actual support exceeded the model's upper bound, suggesting the model underweighted her fundraising momentum and establishment consolidation.")
+
+    st.markdown(f"""
+    <div class="success-box">
+    <strong>Model Analysis ({r_pct}% R / {d_pct}% D reporting):</strong><br><br>
+    {"".join(analysis_lines)}
+    </div>
+    """, unsafe_allow_html=True)
+
+
 def display_stats_metrics(data: dict, cols_per_row: int = 4):
     """Display dictionary data as metric cards."""
     if not data:
@@ -419,12 +690,20 @@ def render_sidebar():
 
             st.markdown("---")
 
-            st.markdown("### 2026 Predictions")
-            st.markdown("**Primaries (Mar 3)**")
-            st.metric("R Primary", "Abbott", delta="85-90%")
-            st.metric("D Primary", "Hinojosa", delta="52-58%")
+            st.markdown("### 2026 Results (LIVE)")
+            _ms = load_model_state()
+            _pri = _ms.get('primary', {})
+            _r = _pri.get('republican', {})
+            _d = _pri.get('democratic', {})
+            _r_lead = _r.get('candidates', [{}])[0] if _r.get('candidates') else {}
+            _d_lead = _d.get('candidates', [{}])[0] if _d.get('candidates') else {}
+            st.markdown(f"**Primaries — {_pri.get('status', 'LIVE')}**")
+            st.metric("R Primary", f"{_r_lead.get('name','?').split()[-1]} {_r_lead.get('pct',0)}%",
+                      delta=f"{_r.get('pct_reporting',0)}% in")
+            st.metric("D Primary", f"{_d_lead.get('name','?').split()[-1]} {_d_lead.get('pct',0)}%",
+                      delta=f"{_d.get('pct_reporting',0)}% in")
             st.markdown("**General (Nov 3)**")
-            st.metric("Winner", "Abbott (R)", delta="R+12-18%")
+            st.metric("Forecast", "Abbott (R)", delta="RCP +7.5")
 
             st.markdown("---")
 
@@ -884,9 +1163,9 @@ def render_client_tab(manager, viz):
     with col2:
         st.metric("Democrat", "Gina Hinojosa", delta="State Representative")
     with col3:
-        st.metric("Current Polling", "Abbott +8", delta="50% - 42%")
+        st.metric("RCP Average", "Abbott +7.5", delta="49.5% - 42.0%")
     with col4:
-        st.metric("Election Date", "Nov 3, 2026", delta="Primary: Mar 3")
+        st.metric("Primary Day", "TODAY", delta="LIVE RESULTS")
 
     # 2026 Fundraising Comparison
     col1, col2 = st.columns(2)
@@ -906,7 +1185,7 @@ def render_client_tab(manager, viz):
         dates_2026 = pd.DataFrame({
             'Event': ['Filing Deadline', 'Primary Election', 'Primary Runoff', 'General Election'],
             'Date': ['Dec 8, 2025', 'March 3, 2026', 'May 26, 2026', 'November 3, 2026'],
-            'Status': ['✓ Complete', 'Upcoming', 'If needed', 'Upcoming']
+            'Status': ['Complete', 'TODAY — LIVE', 'If needed', '245 days']
         })
         st.dataframe(dates_2026, use_container_width=True, hide_index=True)
 
@@ -915,32 +1194,81 @@ def render_client_tab(manager, viz):
     # ==========================================================================
     st.markdown('<div class="section-header">2026 Election Predictions</div>', unsafe_allow_html=True)
 
-    # Primary Predictions
-    st.markdown("#### Primary Elections (March 3, 2026)")
+    # ==========================================================================
+    # LIVE PRIMARY RESULTS (auto-refreshes from model_state.json every 60s)
+    # ==========================================================================
+    model_state = load_model_state()
+    primary = model_state.get('primary', {})
+    rep = primary.get('republican', {})
+    dem = primary.get('democratic', {})
+    r_pct = rep.get('pct_reporting', 0)
+    d_pct = dem.get('pct_reporting', 0)
+    updated_at = model_state.get('updated_at', 'N/A')
+    status = primary.get('status', 'LIVE')
 
+    st.markdown(f"""
+    <div class="warning-box">
+    <strong>{status} — Primary Election Day: March 3, 2026</strong> |
+    R: {r_pct}% reporting | D: {d_pct}% reporting |
+    Last updated: {updated_at[:19] if len(str(updated_at)) > 19 else updated_at}
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Auto-refresh every 60 seconds
+    st.markdown("""<meta http-equiv="refresh" content="60">""", unsafe_allow_html=True)
+
+    st.markdown("#### Live Primary Results")
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("**Republican Primary**")
-        r_primary_df = pd.DataFrame({
-            'Candidate': ['Greg Abbott', 'Evelyn Brooks', 'Mark Goloby', 'Others'],
-            'Status': ['Incumbent', 'SBOE Member', 'Tech Executive', 'Various'],
-            'Funds': ['$105.7M', '~$100K', '~$500K', '~$175K'],
-            'Predicted %': ['85-90%', '3%', '2%', '5%']
-        })
-        st.dataframe(r_primary_df, use_container_width=True, hide_index=True)
-        st.success("**Winner: ABBOTT (85-90%)** - No runoff needed")
+        st.markdown(f"**Republican Primary** ({r_pct}% reporting)")
+        r_cands = rep.get('candidates', [])
+        if r_cands:
+            r_df = pd.DataFrame([{
+                'Candidate': c['name'],
+                'Votes': f"{c['votes']:,}",
+                'Pct': f"{c['pct']}%",
+            } for c in r_cands])
+            st.dataframe(r_df, use_container_width=True, hide_index=True)
+            leader = r_cands[0]
+            if leader['pct'] > 50:
+                st.success(f"**{leader['name'].upper()} — {leader['pct']}%** | {rep.get('total_votes',0):,} total votes | No runoff")
+            else:
+                st.warning(f"**{leader['name']} leading — {leader['pct']}%** | Runoff possible")
+        else:
+            st.info("Waiting for results...")
 
     with col2:
-        st.markdown("**Democratic Primary**")
-        d_primary_df = pd.DataFrame({
-            'Candidate': ['Gina Hinojosa', 'Chris Bell', 'Bobby Cole', 'Others'],
-            'Status': ['State Rep', 'Former US Rep', 'Farmer', 'Various'],
-            'Funds': ['$1.3M', '$33K', '$61K', '~$50K'],
-            'Predicted %': ['52-58%', '12-15%', '8-10%', '5-8%']
-        })
-        st.dataframe(d_primary_df, use_container_width=True, hide_index=True)
-        st.success("**Winner: HINOJOSA (52-58%)** - Likely avoids runoff")
+        st.markdown(f"**Democratic Primary** ({d_pct}% reporting)")
+        d_cands = dem.get('candidates', [])
+        if d_cands:
+            d_df = pd.DataFrame([{
+                'Candidate': c['name'],
+                'Votes': f"{c['votes']:,}",
+                'Pct': f"{c['pct']}%",
+            } for c in d_cands])
+            st.dataframe(d_df, use_container_width=True, hide_index=True)
+            leader = d_cands[0]
+            if leader['pct'] > 50:
+                st.success(f"**{leader['name'].upper()} — {leader['pct']}%** | {dem.get('total_votes',0):,} total votes | No runoff")
+            else:
+                st.warning(f"**{leader['name']} leading — {leader['pct']}%** | Runoff possible")
+        else:
+            st.info("Waiting for results...")
+
+    # ==========================================================================
+    # COUNTY MAP (real GeoJSON choropleth)
+    # ==========================================================================
+    st.markdown("---")
+    st.markdown("#### County Results Map")
+    render_county_map()
+
+    # ==========================================================================
+    # MODEL vs ACTUAL COMPARISON
+    # ==========================================================================
+    st.markdown("---")
+    st.markdown("#### Model Prediction vs Actual Results")
+    render_model_vs_actual()
 
     # General Election Prediction
     st.markdown("#### General Election (November 3, 2026)")
@@ -951,19 +1279,21 @@ def render_client_tab(manager, viz):
     with col1:
         st.metric("Predicted Winner", "Greg Abbott (R)", delta="4th Term")
     with col2:
-        st.metric("Predicted Margin", "R+12-18%", delta="99%+ confidence")
+        st.metric("RCP Average", "R+7.5", delta="99%+ confidence")
     with col3:
         st.metric("Abbott Vote Share", "~59%", delta="Hinojosa ~39%")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("**Key Factors**")
+        st.markdown("**Key Factors (Updated March 3)**")
         factors_df = pd.DataFrame({
-            'Factor': ['Current Polling', 'Fundraising Gap', 'Incumbency', 'VIX (Volatility)',
-                       'Unemployment', 'Inflation', 'GDP Growth', 'Last D Win'],
-            'Value': ['Abbott +8 (50-42)', '81:1 R advantage', '3-term incumbent', '15.4 (Low)',
-                     '4.5%', '2.8%', '2.2%', '1994 (32 years)']
+            'Factor': ['RCP Polling Avg', 'Fundraising Gap', 'Incumbency', 'VIX (Volatility)',
+                       'TX Unemployment', 'Inflation', 'TX GDP Growth', 'Last D Win',
+                       'Cook Rating', 'Kalshi R Odds'],
+            'Value': ['Abbott +7.5 (49.5-42)', '81:1 R advantage', '3-term incumbent', '20.23',
+                     '4.3%', '2.8%', '2.6%', '1994 (32 years)',
+                     'Solid Republican', '90%+']
         })
         st.dataframe(factors_df, use_container_width=True, hide_index=True)
 

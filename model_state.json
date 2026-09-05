@@ -1,9 +1,10 @@
 {
   "polling": {
-    "abbott": 50,
-    "hinojosa": 42,
-    "margin": 8,
-    "poll_count": 5
+    "abbott": 49.5,
+    "hinojosa": 42.0,
+    "margin": 7.5,
+    "poll_count": 7,
+    "rcp_average": "Abbott +7.5"
   },
   "prediction": {
     "winner": "Abbott",
@@ -12,24 +13,170 @@
     "win_probability": 99
   },
   "primary": {
+    "date": "2026-03-03",
+    "status": "LIVE",
     "republican": {
-      "abbott": "85-90",
-      "brooks": "3",
-      "goloby": "2"
+      "pct_reporting": 98.9,
+      "total_votes": 2151251,
+      "candidates": [
+        {
+          "name": "Greg Abbott",
+          "votes": 1759949,
+          "is_winner": true,
+          "is_incumbent": true,
+          "pct": 81.8
+        },
+        {
+          "name": "Pete Chambers",
+          "votes": 240350,
+          "is_winner": false,
+          "is_incumbent": false,
+          "pct": 11.2
+        },
+        {
+          "name": "Evelyn Brooks",
+          "votes": 43998,
+          "is_winner": false,
+          "is_incumbent": false,
+          "pct": 2.0
+        },
+        {
+          "name": "Arturo Espinosa",
+          "votes": 23421,
+          "is_winner": false,
+          "is_incumbent": false,
+          "pct": 1.1
+        },
+        {
+          "name": "Charles Crouch",
+          "votes": 15389,
+          "is_winner": false,
+          "is_incumbent": false,
+          "pct": 0.7
+        }
+      ]
     },
     "democratic": {
-      "hinojosa": "52-58",
-      "bell": "12-15",
-      "cole": "8-10"
+      "pct_reporting": 98.7,
+      "total_votes": 2196320,
+      "candidates": [
+        {
+          "name": "Gina Hinojosa",
+          "votes": 1285425,
+          "is_winner": true,
+          "is_incumbent": false,
+          "pct": 58.5
+        },
+        {
+          "name": "Chris Bell",
+          "votes": 215835,
+          "is_winner": false,
+          "is_incumbent": false,
+          "pct": 9.8
+        },
+        {
+          "name": "Angela Villescaz",
+          "votes": 150338,
+          "is_winner": false,
+          "is_incumbent": false,
+          "pct": 6.8
+        },
+        {
+          "name": "Patricia Abrego",
+          "votes": 128202,
+          "is_winner": false,
+          "is_incumbent": false,
+          "pct": 5.8
+        },
+        {
+          "name": "Andrew White",
+          "votes": 116904,
+          "is_winner": false,
+          "is_incumbent": false,
+          "pct": 5.3
+        }
+      ]
     }
   },
   "economic": {
     "vix": 20.23,
-    "unemployment": 4.5,
-    "inflation": 2.8
+    "unemployment": 4.3,
+    "inflation": 2.8,
+    "tx_gdp_growth": 2.6
   },
   "finance": {
-    "abbott_total": 105700000,
-    "hinojosa_total": 1300000
-  }
+    "abbott_total": 106000000,
+    "hinojosa_total": 1300000,
+    "ratio": "81:1"
+  },
+  "ratings": {
+    "cook": "Solid Republican",
+    "inside_elections": "Solid Republican",
+    "sabatos": "Safe Republican",
+    "kalshi_r_odds": 90
+  },
+  "model_comparison": {
+    "republican": {
+      "abbott": {
+        "predicted": "85-90%",
+        "predicted_mid": 87.5,
+        "actual": 81.8
+      },
+      "chambers": {
+        "predicted": "N/A (not modeled)",
+        "predicted_mid": 0,
+        "actual": 11.2
+      },
+      "brooks": {
+        "predicted": "3%",
+        "predicted_mid": 3,
+        "actual": 2.0
+      },
+      "goloby": {
+        "predicted": "2%",
+        "predicted_mid": 2,
+        "actual": 0.5
+      }
+    },
+    "democratic": {
+      "hinojosa": {
+        "predicted": "52-58%",
+        "predicted_mid": 55,
+        "actual": 58.5
+      },
+      "bell": {
+        "predicted": "12-15%",
+        "predicted_mid": 13.5,
+        "actual": 9.8
+      },
+      "cole": {
+        "predicted": "8-10%",
+        "predicted_mid": 9,
+        "actual": 5.1
+      }
+    },
+    "calls": {
+      "r_winner": {
+        "predicted": "Abbott",
+        "actual": "Greg Abbott",
+        "correct": true
+      },
+      "d_winner": {
+        "predicted": "Hinojosa",
+        "actual": "Gina Hinojosa",
+        "correct": true
+      },
+      "r_runoff": {
+        "predicted": "No",
+        "actual": "No",
+        "correct": true
+      },
+      "d_runoff": {
+        "predicted": "No",
+        "actual": "No",
+        "correct": true
+      }
+    }
+  },
+  "updated_at": "2026-03-07T22:20:43.708038"
 }

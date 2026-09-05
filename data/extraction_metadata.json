@@ -1,12 +1,12 @@
 {
-  "extraction_timestamp": "2026-01-29T18:49:45.489407",
+  "extraction_timestamp": "2026-03-03T20:14:19.214769",
   "start_year": 2010,
   "end_year": 2025,
   "sources": {
     "elections": {
       "status": "success",
-      "timestamp": "2026-01-29T18:49:45.446034",
-      "elapsed_seconds": 5.011209,
+      "timestamp": "2026-03-03T20:14:19.149098",
+      "elapsed_seconds": 5.008102,
       "record_counts": {
         "statewide": 19,
         "county": 0,
@@ -15,8 +15,8 @@
     },
     "campaign_finance": {
       "status": "success",
-      "timestamp": "2026-01-29T18:49:45.459231",
-      "elapsed_seconds": 0.013094,
+      "timestamp": "2026-03-03T20:14:19.175494",
+      "elapsed_seconds": 0.026286,
       "record_counts": {
         "contributions": 7,
         "expenditures": 80,
@@ -26,8 +26,8 @@
     },
     "polling": {
       "status": "success",
-      "timestamp": "2026-01-29T18:49:45.473546",
-      "elapsed_seconds": 0.01425,
+      "timestamp": "2026-03-03T20:14:19.194440",
+      "elapsed_seconds": 0.018881,
       "record_counts": {
         "polls": 50,
         "averages": 8,
@@ -37,8 +37,8 @@
     },
     "news": {
       "status": "success",
-      "timestamp": "2026-01-29T18:49:45.489379",
-      "elapsed_seconds": 0.015786,
+      "timestamp": "2026-03-03T20:14:19.214736",
+      "elapsed_seconds": 0.020241,
       "record_counts": {
         "articles": 20,
         "by_candidate": 8,
