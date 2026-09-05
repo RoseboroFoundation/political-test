@@ -1,0 +1,65 @@
+{
+    "race_type": "state_senate",
+    "state": "AL",
+    "district": 25,
+    "election_years": [2026, 2030],
+    "cycle_length": 4,
+    "race_name": "Alabama State Senate District 25",
+    "description": "Post-redistricting district covering Crenshaw County and part of Montgomery County",
+    "redistricting_note": "Remedial Plan 3 implemented November 2025 per federal court order (Allen v. Milligan)",
+    "data_sources": {
+        "election_results": "https://www.sos.alabama.gov/alabama-votes",
+        "campaign_finance": "https://fcpa.alabamavotes.gov",
+        "polling": "internal"
+    },
+    "feature_availability": {
+        "tier1_universal": true,
+        "tier2_polling": false,
+        "tier2_sentiment": false,
+        "tier2_vix": true,
+        "tier3_coattails": true,
+        "tier3_culture_war": false
+    },
+    "district_geography": {
+        "counties": ["Crenshaw", "Montgomery (partial)"],
+        "description": "District 25 covers all of Crenshaw County and a portion of Montgomery County south of downtown",
+        "redistricting_date": "2025-11-17",
+        "court_case": "Allen v. Milligan"
+    },
+    "demographics": {
+        "total_population": 143716,
+        "black_vap_pct": 51.1,
+        "white_vap_pct": 46.2,
+        "hispanic_vap_pct": 1.8,
+        "other_vap_pct": 0.9,
+        "note": "Post-redistricting demographics from Remedial Plan 3"
+    },
+    "historical_partisan_lean": {
+        "note": "New district - limited historical data",
+        "estimated_lean": "R+5",
+        "pre_redistricting_lean": "R+25",
+        "adjustment_reason": "BVAP increased from 29% to 51.1%"
+    },
+    "candidates_2026": {
+        "Democratic": [
+            {
+                "name": "Kirk Hatcher",
+                "incumbent": false,
+                "previous_office": "State Senator, District 26",
+                "note": "Redistricted out of District 26, running in District 25"
+            },
+            {
+                "name": "KK Middleton",
+                "incumbent": false,
+                "previous_office": null
+            }
+        ],
+        "Republican": []
+    },
+    "incumbent_info": {
+        "name": "Will Barfoot",
+        "party": "R",
+        "since": 2018,
+        "note": "Running in different district after map change"
+    }
+}

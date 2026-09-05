@@ -1,0 +1,66 @@
+{
+    "race_type": "state_senate",
+    "state": "AL",
+    "district": 26,
+    "election_years": [2026, 2030],
+    "cycle_length": 4,
+    "race_name": "Alabama State Senate District 26",
+    "description": "Post-redistricting district covering Elmore County and part of Montgomery County",
+    "redistricting_note": "Remedial Plan 3 implemented November 2025 per federal court order (Allen v. Milligan)",
+    "data_sources": {
+        "election_results": "https://www.sos.alabama.gov/alabama-votes",
+        "campaign_finance": "https://fcpa.alabamavotes.gov",
+        "polling": "internal"
+    },
+    "feature_availability": {
+        "tier1_universal": true,
+        "tier2_polling": false,
+        "tier2_sentiment": false,
+        "tier2_vix": true,
+        "tier3_coattails": true,
+        "tier3_culture_war": false
+    },
+    "district_geography": {
+        "counties": ["Elmore", "Montgomery (partial)"],
+        "description": "District 26 now covers Elmore County and a portion of Montgomery County",
+        "redistricting_date": "2025-11-17",
+        "court_case": "Allen v. Milligan"
+    },
+    "demographics": {
+        "total_population": 143716,
+        "black_vap_pct": 43.9,
+        "white_vap_pct": 52.0,
+        "hispanic_vap_pct": 2.5,
+        "other_vap_pct": 1.6,
+        "note": "Post-redistricting demographics from Remedial Plan 3"
+    },
+    "historical_partisan_lean": {
+        "note": "New district - limited historical data",
+        "estimated_lean": "R+8",
+        "pre_redistricting_lean": "D+15",
+        "adjustment_reason": "BVAP decreased from 66.1% to 43.9%"
+    },
+    "candidates_2026": {
+        "Democratic": [
+            {
+                "name": "Tabitha Isner",
+                "incumbent": false,
+                "previous_office": "2018 CD-2 Democratic nominee"
+            }
+        ],
+        "Republican": [
+            {
+                "name": "Will Barfoot",
+                "incumbent": false,
+                "previous_office": "State Senator, District 25",
+                "note": "Redistricted out of District 25, running in District 26"
+            }
+        ]
+    },
+    "incumbent_info": {
+        "name": "Kirk Hatcher",
+        "party": "D",
+        "since": 2021,
+        "note": "Running in District 25 after map change"
+    }
+}

@@ -1,0 +1,50 @@
+{
+    "race_type": "state_house",
+    "state": "AL",
+    "district": 76,
+    "election_years": [2022, 2026, 2030],
+    "cycle_length": 4,
+    "race_name": "Alabama State House District 76",
+    "description": "Montgomery County State House district",
+    "data_sources": {
+        "election_results": "https://www.sos.alabama.gov/alabama-votes",
+        "campaign_finance": "https://fcpa.alabamavotes.gov"
+    },
+    "feature_availability": {
+        "tier1_universal": true,
+        "tier2_polling": false,
+        "tier2_sentiment": false,
+        "tier2_vix": true,
+        "tier3_coattails": true
+    },
+    "district_geography": {
+        "counties": ["Montgomery"],
+        "description": "Central Montgomery County"
+    },
+    "demographics": {
+        "total_population": 47905,
+        "black_vap_pct": 72.0,
+        "white_vap_pct": 24.0,
+        "hispanic_vap_pct": 2.5,
+        "other_vap_pct": 1.5,
+        "note": "Estimated from 2020 Census"
+    },
+    "historical_partisan_lean": {
+        "estimated_lean": "D+40"
+    },
+    "candidates_2026": {
+        "Democratic": [
+            {
+                "name": "Patrice 'Penni' McClammy",
+                "incumbent": true
+            }
+        ],
+        "Republican": []
+    },
+    "incumbent_info": {
+        "name": "Patrice McClammy",
+        "party": "D",
+        "since": 2018
+    },
+    "open_seat": false
+}

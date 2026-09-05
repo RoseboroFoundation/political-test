@@ -1,0 +1,61 @@
+{
+    "race_type": "state_house",
+    "state": "AL",
+    "district": 74,
+    "election_years": [2022, 2026, 2030],
+    "cycle_length": 4,
+    "race_name": "Alabama State House District 74",
+    "description": "Montgomery County State House district - Open seat in 2026",
+    "data_sources": {
+        "election_results": "https://www.sos.alabama.gov/alabama-votes",
+        "campaign_finance": "https://fcpa.alabamavotes.gov"
+    },
+    "feature_availability": {
+        "tier1_universal": true,
+        "tier2_polling": false,
+        "tier2_sentiment": false,
+        "tier2_vix": true,
+        "tier3_coattails": true
+    },
+    "district_geography": {
+        "counties": ["Montgomery"],
+        "description": "Eastern Montgomery County, includes parts of Pike Road"
+    },
+    "demographics": {
+        "total_population": 47905,
+        "black_vap_pct": 52.0,
+        "white_vap_pct": 44.0,
+        "hispanic_vap_pct": 2.5,
+        "other_vap_pct": 1.5,
+        "note": "Estimated from 2020 Census"
+    },
+    "historical_partisan_lean": {
+        "estimated_lean": "D+10",
+        "2022_result": "D+20 (Ensler 60%, Meadows 40%)"
+    },
+    "candidates_2026": {
+        "Democratic": [
+            {
+                "name": "Jasmyne Crimiel",
+                "incumbent": false
+            },
+            {
+                "name": "Austin Smith",
+                "incumbent": false
+            }
+        ],
+        "Republican": [
+            {
+                "name": "Alva Lambert",
+                "incumbent": false
+            }
+        ]
+    },
+    "incumbent_info": {
+        "name": "Phillip Ensler",
+        "party": "D",
+        "since": 2022,
+        "status": "Not seeking re-election; running for Lieutenant Governor"
+    },
+    "open_seat": true
+}
